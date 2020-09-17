@@ -1,0 +1,38 @@
+---
+title: "ARE 213 Problem Set 1A"
+author: "Becky Cardinali, Yuen Ho, Sara Johns, and Jacob Lefler"
+date: "Due 09/25/2020"
+header-includes: 
+  - \usepackage{float}
+  - \floatplacement{figure}{H}
+  - \usepackage{amsmath}
+output: pdf_document
+fig_caption: yes
+geometry: margin=1.5cm
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,
+                      cache = FALSE)
+
+#======================
+# Section 0: Set Up
+#======================
+
+# Clear workspace
+rm(list = ls())
+
+# Load packages
+library(pacman)
+p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2)
+
+# Directory 
+base_directory <- rstudioapi::getActiveDocumentContext()$path %>% dirname() %>% paste0(.,"/")
+
+# read data
+mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
+
+```
+
+
+
