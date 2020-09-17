@@ -28,6 +28,7 @@ p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2)
 
 # Directory 
 base_directory <- rstudioapi::getActiveDocumentContext()$path %>% dirname() %>% paste0(.,"/")
+#base_directory = "/Users/beckycardinali/Desktop/ARE213_psets/"
 
 # read data
 mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
@@ -35,4 +36,4 @@ mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
 ```
 
 
-
+1. *Before getting started with the data work, first consider the table from Snow (1855) reproduced in the lecture notes ("Snow's Table IX"). The table reports only means.
