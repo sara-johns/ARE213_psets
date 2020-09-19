@@ -12,8 +12,8 @@ geometry: margin=1.5cm
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE,
-                      cache = FALSE)
+#knitr::opts_chunk$set(echo = FALSE,
+#                      cache = FALSE)
 
 #======================
 # Section 0: Set Up
@@ -28,7 +28,7 @@ p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2)
 
 # Directory 
 # base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
-# base_directory = "/Users/beckycardinali/Desktop/ARE213_psets/"
+# base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
 
 # read data
 mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
@@ -37,3 +37,54 @@ mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
 
 
 1. *Before getting started with the data work, first consider the table from Snow (1855) reproduced in the lecture notes ("Snow's Table IX"). The table reports only means.
+
+2. The first order of business is to go through the code book, decide on the relevant variables, and process the data. This involves several steps: 
+
+(a) Fix missing values. In the data set several variables take on a value of, say, 9999 if missing. We have already checked for missing observations for about 2/3 of the variables. The remaining variables need to be checked and are the last 15 in the variables list (i.e. from 'cardiac' to 'wgain'). Refer to the codebook for missing value codes. Produce an analysis data set that drops any observations with missing values. 
+
+```{r, include = TRUE}
+# According to the codebook, for the following medical risk factor variables, 8 corresponds to 
+# "Factor not on certificate" and 9 corresponds to "Factor not classifiable": cardiac, lung, 
+# diabetes, herpes, chyper, phyper, pre4000, preterm
+
+med_risk_factors <- c('cardiac', 'lung', 'diabetes', 'herpes', 'chyper', 'phyper', 'pre4000', 'preterm')
+
+for (var in med_risk_factors){
+  mom_dt[var] <- replace(mom_dt[var], which(mom_dt[var] == 8, arr.ind = TRUE), NA)
+  mom_dt[var] <- replace(mom_dt[var], which(mom_dt[var] == 9, arr.ind = TRUE), NA)
+}
+
+# Below, arr.ind = TRUE returns the indices at which the row equals a certain value
+
+# According to the codebook, for tobacco, 9 corresponds to "Unknown or not stated"
+mom_dt$tobacco <- replace(mom_dt$tobacco, which(mom_dt$tobacco == 9, arr.ind = TRUE), NA)
+
+# According to the codebook, for cigar, 99 corresponds to "Unknown or not stated"
+mom_dt$cigar <- replace(mom_dt$cigar, which(mom_dt$cigar == 99, arr.ind = TRUE), NA)
+
+# According to the codebook, for cigar6, 6 corresponds to "Unknown or not stated"
+mom_dt$cigar6 <- replace(mom_dt$cigar6, which(mom_dt$cigar6 == 6, arr.ind = TRUE), NA)
+
+# According to the codebook, for alcohol, 9 corresponds to "Unknown or not stated"
+mom_dt$alcohol <- replace(mom_dt$alcohol, which(mom_dt$alcohol == 9, arr.ind = TRUE), NA)
+
+# According to the codebook, for drink, 99 corresponds to "Unknown or not stated"
+mom_dt$drink <- replace(mom_dt$drink, which(mom_dt$drink == 99, arr.ind = TRUE), NA)
+
+# According to the codebook, for drink5, 5 corresponds to "Unknown or not stated"
+mom_dt$drink5 <- replace(mom_dt$drink5, which(mom_dt$drink5 == 5, arr.ind = TRUE), NA)
+
+# According to the codebook, for wgain (assuming that's wtgain in codebook), 
+# 99 corresponds to "Unknown or not stated"
+mom_dt$wgain <- replace(mom_dt$wgain, which(mom_dt$wgain == 99, arr.ind = TRUE), NA)
+
+# Remove all the rows with any missing value
+mom_dt <- na.omit(mom_dt)
+
+# Now mom_dt contains 114,610 observations instead of the original 120,461
+
+```
+
+(b) If this were a real research project you would want to consider other approaches to missing data besides termination with extreme prejudice. What observations do you have to drop because of missing data? Might this affect your results? Do the data appear to be missing completely at random? How might you assess whether the data appear to be missing at random?
+
+
