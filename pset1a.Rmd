@@ -12,8 +12,7 @@ geometry: margin=1.5cm
 ---
 
 ```{r setup, include=FALSE}
-#knitr::opts_chunk$set(echo = FALSE,
-#                      cache = FALSE)
+knitr::opts_chunk$set(echo = TRUE)
 
 #======================
 # Section 0: Set Up
@@ -27,7 +26,7 @@ library(pacman)
 p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2)
 
 # Directory 
-# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
 # base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
 
 # read data
@@ -78,7 +77,8 @@ mom_dt$drink5 <- replace(mom_dt$drink5, which(mom_dt$drink5 == 5, arr.ind = TRUE
 # 99 corresponds to "Unknown or not stated"
 mom_dt$wgain <- replace(mom_dt$wgain, which(mom_dt$wgain == 99, arr.ind = TRUE), NA)
 
-# Remove all the rows with any missing value
+# Get rows with any missing value into one DT; remove all the rows with any missing value for main DT
+miss_dt <- mom_dt[!(complete.cases(mom_dt)),]
 mom_dt <- na.omit(mom_dt)
 
 # Now mom_dt contains 114,610 observations instead of the original 120,461
@@ -87,4 +87,43 @@ mom_dt <- na.omit(mom_dt)
 
 (b) If this were a real research project you would want to consider other approaches to missing data besides termination with extreme prejudice. What observations do you have to drop because of missing data? Might this affect your results? Do the data appear to be missing completely at random? How might you assess whether the data appear to be missing at random?
 
+We know from the last problem set that if the data are missing at random then dropping them should not affect our results of the effect of smoking on birth weight. However, if the missing data is correlated with the treatment (smoking) or the outcome (birth weight) then it could bias our results. From the table below, it does appear that there are differences in the missing and nonmissing data. As discussed in the last problem set, we could formally assess whether the data is missing at random by regressing missing on the treatment. 
 
+```{r, include = TRUE}
+
+# Compare missing to non missing
+compare_dt <- data.table("Variable" = c("Mother age", "Mother educ", "Marital status", "Prenatal adequacy", 
+                                        "Number living child", "Number dead or living child", 
+                                        "Total live birth or terminations", "Birth order", "Month prenatal began",
+                                        "Number prenatal visits", "Time since last birth", "Father age", 
+                                        "Father educ", "Gestation", "Child sex",
+                                        "Birth weight", "Number born", "One min Apgar", "Five min Apgar", 
+                                        "Anemia", "Cardiac disease", "Lung disease", "Diabetes", 
+                                        "Herpes", "Chron. hypertension", "Preg. hypertension", 
+                                        "Previous heavy birth", "Previous preterm", "Tobacco use", 
+                                        "Number cigarettes", "Alcohol use", "Number drinks", "Weight gain"),
+                         "Miss means" = round(as.numeric(lapply(miss_dt[, c(6, 9:18, 20, 22, 
+                                                                                    25:30, 33:43, 45:46, 48)],
+                                                                        mean, na.rm=TRUE)), 3),
+                         "Miss sd" = round(as.numeric(lapply(miss_dt[, c(6, 9:18, 20, 22, 25:30, 33:43,
+                                                                                 45:46, 48)],
+                                                                     sd, na.rm=TRUE)), 3),
+                         "Nonmiss means" = round(as.numeric(lapply(mom_dt[, c(6, 9:18, 20, 22, 25:30,
+                                                                                      33:43, 45:46, 48)],
+                                                                           mean)), 3),
+                         "Nonmiss sd" = round(as.numeric(lapply(mom_dt[, c(6, 9:18, 20, 22, 
+                                                                                   25:30, 33:43, 45:46, 48)], 
+                                                                        sd)), 3))
+
+# add difference and t stat
+compare_dt[, "Difference" := `Miss means` - `Nonmiss means`]
+compare_dt[, "t-stat" := Difference / sqrt(((`Miss sd`)^2/nrow(miss_dt)) + ((`Nonmiss sd`)^2/nrow(mom_dt)))]
+ 
+```
+
+```{r, include=TRUE, results = 'asis'}
+
+print(xtable(compare_dt, caption = 'Difference in Means', digits = 2), 
+      include.rownames = FALSE, size = "small", comment = FALSE)
+
+```
