@@ -26,7 +26,7 @@ library(pacman)
 p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2)
 
 # Directory 
-base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
 # base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
 
 # read data
@@ -36,6 +36,15 @@ mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
 
 
 1. *Before getting started with the data work, first consider the table from Snow (1855) reproduced in the lecture notes ("Snow's Table IX"). The table reports only means.
+
+(a) Develop an approximate 95% confidence interval for "Deaths per 10,000 Houses" for Southwark and Vaxhall customers. Develop another 95% CI for the same quantity for Lambeth. Do the confidence intervals overlap?
+
+(b) Discuss either formally or intuitively the critical assumption that underlies your confidence intervals. Give a 2 or 3 sentence quote from Snow's description (reproduced in Freedman (1991)) that supports this assumption.
+
+
+We now move to some analysis of real data. The data portions of Problem Sets 1a and 1b are based heavily on the paper Almond, Chay, and Lee (2005), and problem sets from Ken Chay and John DiNardo based on some of the data used in the paper. The goal of this assignment is to examine the research question: what is the causal effect of maternal smoking during pregnancy on infant birthweight and other infant health outcomes. The data for the problem set is an extract of all births from the 1993 National Natality Detail Files for Pennsylvania. Each observation represents an infant-mother match. The data in Stata format can be downloaded from the bCourses website. There should be 48 variables in the data and, after you are finished with the cleaning steps desribed below, 114,610 observations. 
+
+The data here are "real" and quite imperfect, which will help simulate the unpleasantness of real world data work. Unlike the real world where you will confront this bleak situation largely alone, I will provide you with some hints for working your way through the raw data. You can download part of the codebook for the data to help you figure out the relevant variables.
 
 2. The first order of business is to go through the code book, decide on the relevant variables, and process the data. This involves several steps: 
 
@@ -125,5 +134,34 @@ compare_dt[, "t-stat" := Difference / sqrt(((`Miss sd`)^2/nrow(miss_dt)) + ((`No
 
 print(xtable(compare_dt, caption = 'Difference in Means', digits = 2), 
       include.rownames = FALSE, size = "small", comment = FALSE)
+
+```
+
+(c) Produce a summary table describing the final analysis data set.
+
+
+3. The next part of the assignment is to try to estimate the "causal" effect of maternal smoking during pregnancy on infant birth weight. Let's start out using techniques that are familiar, and think about whether they are likely to work in this context. Answer the following questions. 
+
+(a) Compute the mean difference in APGAR scores (both five and one minute versions) as well as birthweight by smoking status.
+```{r, include = TRUE}
+# According to the codebook, omaps is the one minute APGAR score and fmaps is the five minute APGAR score
+# Both are a score from 0-10 
+# dbrwt (assuming that corresponds to dbirwt in codebook) is birthweight in grams
+# tobacco is 1: yes, tobacco use during pregnancy and 2: no tobacco use during pregnancy
+
+smoker <- subset(mom_dt, mom_dt$tobacco == 1)
+nonsmoker <- subset(mom_dt, mom_dt$tobacco == 2)
+
+# Mean difference in one minute APGAR score by smoking status
+mean_diff_1min_apgar <- mean(smoker$omaps) - mean(nonsmoker$omaps)
+print(mean_diff_1min_apgar)
+
+# Mean difference in five minute APGAR score by smoking status
+mean_diff_5min_apgar <- mean(smoker$fmaps) - mean(nonsmoker$fmaps)
+print(mean_diff_5min_apgar)
+
+# Mean difference in birthweight by smoking status
+mean_diff_birthweight <- mean(smoker$dbrwt) - mean(nonsmoker$dbrwt)
+print(mean_diff_birthweight)
 
 ```
