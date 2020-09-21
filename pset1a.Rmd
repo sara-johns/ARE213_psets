@@ -26,7 +26,7 @@ library(pacman)
 p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2)
 
 # Directory 
-# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
 # base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
 
 # read data
@@ -96,14 +96,14 @@ mom_dt <- na.omit(mom_dt)
 
 (b) If this were a real research project you would want to consider other approaches to missing data besides termination with extreme prejudice. What observations do you have to drop because of missing data? Might this affect your results? Do the data appear to be missing completely at random? How might you assess whether the data appear to be missing at random?
 
-We know from the last problem set that if the data are missing at random then dropping them should not affect our results of the effect of smoking on birth weight. However, if the missing data is correlated with the treatment (smoking) or the outcome (birth weight) then it could bias our results. From the table below, it does appear that there are differences in the missing and nonmissing data. As discussed in the last problem set, we could formally assess whether the data is missing at random by regressing missing on the treatment. 
+We know from the last problem set that if the data are missing at random then dropping them should not affect our results of the effect of smoking on birth weight. However, if the missing data is correlated with the treatment (smoking) or the outcome (birth weight) then it could bias our results. From the table below, it does appear that there are differences in the missing and nonmissing data. Specifically, ***Add info from table here*** As discussed in the last problem set, we could formally assess whether the data is missing at random by regressing an indicator for the missing variable on the treatment. 
 
 ```{r, include = TRUE}
 
 # Compare missing to non missing
 compare_dt <- data.table("Variable" = c("Mother age", "Mother educ", "Marital status", "Prenatal adequacy", 
-                                        "Number living child", "Number dead or living child", 
-                                        "Total live birth or terminations", "Birth order", "Month prenatal began",
+                                        "Number living child", "# dead/living child", 
+                                        "Total birth/terminations", "Birth order", "Month prenatal began",
                                         "Number prenatal visits", "Time since last birth", "Father age", 
                                         "Father educ", "Gestation", "Child sex",
                                         "Birth weight", "Number born", "One min Apgar", "Five min Apgar", 
@@ -112,33 +112,87 @@ compare_dt <- data.table("Variable" = c("Mother age", "Mother educ", "Marital st
                                         "Previous heavy birth", "Previous preterm", "Tobacco use", 
                                         "Number cigarettes", "Alcohol use", "Number drinks", "Weight gain"),
                          "Miss means" = round(as.numeric(lapply(miss_dt[, c(6, 9:18, 20, 22, 
-                                                                                    25:30, 33:43, 45:46, 48)],
-                                                                        mean, na.rm=TRUE)), 3),
+                                                                          25:30, 33:43, 45:46, 48)],
+                                                                          mean, na.rm=TRUE)), 3),
                          "Miss sd" = round(as.numeric(lapply(miss_dt[, c(6, 9:18, 20, 22, 25:30, 33:43,
-                                                                                 45:46, 48)],
-                                                                     sd, na.rm=TRUE)), 3),
+                                                                       45:46, 48)],
+                                                                       sd, na.rm=TRUE)), 3),
                          "Nonmiss means" = round(as.numeric(lapply(mom_dt[, c(6, 9:18, 20, 22, 25:30,
-                                                                                      33:43, 45:46, 48)],
-                                                                           mean)), 3),
+                                                                            33:43, 45:46, 48)],
+                                                                            mean)), 3),
                          "Nonmiss sd" = round(as.numeric(lapply(mom_dt[, c(6, 9:18, 20, 22, 
-                                                                                   25:30, 33:43, 45:46, 48)], 
-                                                                        sd)), 3))
+                                                                         25:30, 33:43, 45:46, 48)], 
+                                                                         sd)), 3))
 
 # add difference and t stat
 compare_dt[, "Difference" := `Miss means` - `Nonmiss means`]
 compare_dt[, "t-stat" := Difference / sqrt(((`Miss sd`)^2/nrow(miss_dt)) + ((`Nonmiss sd`)^2/nrow(mom_dt)))]
- 
+compare_dt[, "DF" := round(((((`Miss sd`)^2/nrow(miss_dt)) + ((`Nonmiss sd`)^2/nrow(mom_dt)))^2) /
+             ((((`Miss sd`)^2/nrow(miss_dt))^2/(nrow(miss_dt) - 1)) + 
+             (((`Nonmiss sd`)^2/nrow(mom_dt))^2/(nrow(mom_dt) - 1))), 0)]
+compare_dt[, "p-Value" := round(2*pt(-abs(`t-stat`), DF), 3)] 
 ```
 
 ```{r, include=TRUE, results = 'asis'}
 
-print(xtable(compare_dt, caption = 'Difference in Means', digits = 2), 
+print(xtable(compare_dt, caption = 'Difference in Means Missing v Nonmissing', digits = 2), 
       include.rownames = FALSE, size = "small", comment = FALSE)
 
 ```
 
 (c) Produce a summary table describing the final analysis data set.
 
+We create a summary table similar to the table in b, but this time we compare the means of smokers vs non-smokers. To see means/standard deviations for the entire dataset, refer to the nonmissing data columns of part b. 
+
+```{r, include = TRUE}
+setDT(mom_dt)
+# Summary table: broken out by smoker/non smoker
+summary_dt <- data.table("Variable" = c("Mother age", "Mother educ", "Marital status", "Prenatal adequacy", 
+                                        "Number living child", "# dead/living child", 
+                                        "Total birth/terminations", "Birth order", "Month prenatal began",
+                                        "Number prenatal visits", "Time since last birth", "Father age", 
+                                        "Father educ", "Gestation", "Child sex",
+                                        "Birth weight", "Number born", "One min Apgar", "Five min Apgar", 
+                                        "Anemia", "Cardiac disease", "Lung disease", "Diabetes", 
+                                        "Herpes", "Chron. hypertension", "Preg. hypertension", 
+                                        "Previous heavy birth", "Previous preterm", 
+                                        "Number cigarettes", "Alcohol use", "Number drinks", "Weight gain"),
+                         "Smoker mean" = round(as.numeric(lapply(mom_dt[tobacco == 1, 
+                                                                        c(6, 9:18, 20, 22, 25:30, 33:41, 43,
+                                                                        45:46, 48)],
+                                                                        mean)), 3),
+                         "Smoker sd" = round(as.numeric(lapply(mom_dt[tobacco == 1, 
+                                                                      c(6, 9:18, 20, 22, 25:30,
+                                                                      33:41, 43, 45:46, 48)],
+                                                                      sd)), 3),
+                         "Nonsmoker mean" = round(as.numeric(lapply(mom_dt[tobacco == 2, 
+                                                                           c(6, 9:18, 20, 22, 
+                                                                           25:30, 33:41, 43, 45:46, 48)], 
+                                                                           mean)), 3),
+                         "Nonsmoker sd" = round(as.numeric(lapply(mom_dt[tobacco == 2, c(6, 9:18, 20, 22, 
+                                                                           25:30, 33:41, 43, 45:46, 48)], 
+                                                                           sd)), 3))
+
+# add difference and t stat
+summary_dt[, "Diff" := `Smoker mean` - `Nonsmoker mean`]
+summary_dt[, "t-stat" := Diff / sqrt(((`Smoker sd`)^2/nrow(mom_dt[tobacco==1])) + 
+                                             ((`Nonsmoker sd`)^2/nrow(mom_dt[tobacco==2])))]
+summary_dt[, "DF" := round(((((`Smoker sd`)^2/nrow(mom_dt[tobacco==1])) + 
+                               ((`Nonsmoker sd`)^2/nrow(mom_dt[tobacco==2])))^2) /
+             ((((`Smoker sd`)^2/nrow(mom_dt[tobacco==1]))^2/(nrow(mom_dt[tobacco==1]) - 1)) + 
+             (((`Nonsmoker sd`)^2/nrow(mom_dt[tobacco==2]))^2/(nrow(mom_dt[tobacco==2]) - 1))), 0)]
+summary_dt[, "p-Value" := round(2*pt(-abs(`t-stat`), DF), 3)] 
+```
+
+```{r, include=TRUE, results = 'asis'}
+
+print(xtable(summary_dt, caption = 'Difference in Means Smoker v Nonsmoker', digits = 2), 
+      include.rownames = FALSE, size = "small", comment = FALSE)
+
+```
+
+
+\newpage
 
 3. The next part of the assignment is to try to estimate the "causal" effect of maternal smoking during pregnancy on infant birth weight. Let's start out using techniques that are familiar, and think about whether they are likely to work in this context. Answer the following questions. 
 
