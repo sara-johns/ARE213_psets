@@ -23,14 +23,14 @@ rm(list = ls())
 
 # Load packages
 library(pacman)
-p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2)
+p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom)
 
 # Directory 
-base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
 # base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
 
 # read data
-mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
+# mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
 
 ```
 
@@ -39,7 +39,21 @@ mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
 
 (a) Develop an approximate 95% confidence interval for "Deaths per 10,000 Houses" for Southwark and Vaxhall customers. Develop another 95% CI for the same quantity for Lambeth. Do the confidence intervals overlap?
 
+Note that that we're estimating $p$ for a binomial distribution since deaths per 10,000 houses is the same as deaths per person (of course, scaled by persons per 10,000 households). Are we really dealing with a binomial distribution? Probably not, but it might not be a bad approximation if we think contaminated water is distributed randomly across space-time (so one person's probability exposure and subsequent death is the same and independent of another person's). Also, not everyone is equally susceptible to the virus (some have a higher $p$ than others), but our estimate of $p$ can be interpreted as an average $p$.
+
+There are various ways to construct a confidence interval for an estimated binomial distribution. We use three different methods, all of which provide very similar estimates.
+
+```{r, include = TRUE}
+# Southwark and Vauxhall
+binom.confint(1263, 40046, method=c("asymptotic", "wilson", "agresti-coull"), type="central")
+
+# Lambeth
+binom.confint(98, 26107, method=c("asymptotic", "wilson", "agresti-coull"), type="central")
+```
+
 (b) Discuss either formally or intuitively the critical assumption that underlies your confidence intervals. Give a 2 or 3 sentence quote from Snow's description (reproduced in Freedman (1991)) that supports this assumption.
+
+To be confident that it is the choice of water company that is causing the difference in $p$ and not some other factor, we need to be sure that there are not systematic differences between those who get their water from Southwark and Vauxhall and those who get it from Lambeth. John Snow argues that the two groups of people are comparable: "both rich and poor, both large houses and small" etc. In that case, we are reasonably certain that the difference in water company is what causes the difference in mortality risk.
 
 
 We now move to some analysis of real data. The data portions of Problem Sets 1a and 1b are based heavily on the paper Almond, Chay, and Lee (2005), and problem sets from Ken Chay and John DiNardo based on some of the data used in the paper. The goal of this assignment is to examine the research question: what is the causal effect of maternal smoking during pregnancy on infant birthweight and other infant health outcomes. The data for the problem set is an extract of all births from the 1993 National Natality Detail Files for Pennsylvania. Each observation represents an infant-mother match. The data in Stata format can be downloaded from the bCourses website. There should be 48 variables in the data and, after you are finished with the cleaning steps desribed below, 114,610 observations. 
