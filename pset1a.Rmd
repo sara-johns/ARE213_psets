@@ -26,14 +26,15 @@ library(pacman)
 p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom)
 
 # Directory 
-# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
 # base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
 
 # read data
-# mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
+mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
 
 ```
 
+## Section 1
 
 1. *Before getting started with the data work, first consider the table from Snow (1855) reproduced in the lecture notes ("Snow's Table IX"). The table reports only means.
 
@@ -41,7 +42,7 @@ p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom)
 
 Note that that we're estimating $p$ for a binomial distribution since deaths per 10,000 houses is the same as deaths per person (of course, scaled by persons per 10,000 households). Are we really dealing with a binomial distribution? Probably not, but it might not be a bad approximation if we think contaminated water is distributed randomly across space-time (so one person's probability exposure and subsequent death is the same and independent of another person's). Also, not everyone is equally susceptible to the virus (some have a higher $p$ than others), but our estimate of $p$ can be interpreted as an average $p$.
 
-There are various ways to construct a confidence interval for an estimated binomial distribution. We use three different methods, all of which provide very similar estimates.
+There are various ways to construct a confidence interval for an estimated binomial distribution. We use three different methods, all of which provide very similar estimates. The confidence intervals do not overlap.
 
 ```{r, include = TRUE}
 # Southwark and Vauxhall
@@ -55,6 +56,7 @@ binom.confint(98, 26107, method=c("asymptotic", "wilson", "agresti-coull"), type
 
 To be confident that it is the choice of water company that is causing the difference in $p$ and not some other factor, we need to be sure that there are not systematic differences between those who get their water from Southwark and Vauxhall and those who get it from Lambeth. John Snow argues that the two groups of people are comparable: "both rich and poor, both large houses and small" etc. In that case, we are reasonably certain that the difference in water company is what causes the difference in mortality risk.
 
+## Section 2
 
 We now move to some analysis of real data. The data portions of Problem Sets 1a and 1b are based heavily on the paper Almond, Chay, and Lee (2005), and problem sets from Ken Chay and John DiNardo based on some of the data used in the paper. The goal of this assignment is to examine the research question: what is the causal effect of maternal smoking during pregnancy on infant birthweight and other infant health outcomes. The data for the problem set is an extract of all births from the 1993 National Natality Detail Files for Pennsylvania. Each observation represents an infant-mother match. The data in Stata format can be downloaded from the bCourses website. There should be 48 variables in the data and, after you are finished with the cleaning steps desribed below, 114,610 observations. 
 
@@ -110,7 +112,16 @@ mom_dt <- na.omit(mom_dt)
 
 (b) If this were a real research project you would want to consider other approaches to missing data besides termination with extreme prejudice. What observations do you have to drop because of missing data? Might this affect your results? Do the data appear to be missing completely at random? How might you assess whether the data appear to be missing at random?
 
-We know from the last problem set that if the data are missing at random then dropping them should not affect our results of the effect of smoking on birth weight. However, if the missing data is correlated with the treatment (smoking) or the outcome (birth weight) then it could bias our results. From the table below, it does appear that there are differences in the missing and nonmissing data. Specifically, ***Add info from table here*** As discussed in the last problem set, we could formally assess whether the data is missing at random by regressing an indicator for the missing variable on the treatment. 
+We know from the last problem set that if the data are missing at random then dropping them should not affect our results of the effect of smoking on birth weight. However, if the missing data is correlated with the treatment (smoking) or the outcome (birth weight) then it could bias our results. From the table below, it does appear that there are differences in the missing and nonmissing data. For example, the mothers in the missing data are younger, less educated, less likely to be married, have more previous children, received less prenatal care, have a shorter time since the last birth, have a lower gestation period, and have lower birth weight. As discussed in the last problem set, we could formally assess whether the data is missing at random by regressing an indicator for the missing variable on the treatment. 
+
+In the table, we calculate the mean and standard deviation of the variables for the missing and nonmissing data. We also calculate the t-stat: 
+
+$$ t = \frac{Mean_m - Mean_{nm}}{\sqrt{\frac{Var_m}{n_m} + \frac{Var_{nm}}{n_{nm}}}}$$ 
+
+the degrees of freedom:
+
+$$ \frac{\frac{Var_m}{n_m} + \frac{Var_{nm}}{n_{nm}}}{\frac{(\frac{Var_m}{n_m})^2}{n_m-1} + \frac{(\frac{Var_{nm}}{n_{nm}})^2}{n_{nm}-1}}$$
+and the p-value which is the probability that the t-statistic achieves the value calculated.
 
 ```{r, include = TRUE}
 
@@ -156,7 +167,7 @@ print(xtable(compare_dt, caption = 'Difference in Means Missing v Nonmissing', d
 
 (c) Produce a summary table describing the final analysis data set.
 
-We create a summary table similar to the table in b, but this time we compare the means of smokers vs non-smokers. To see means/standard deviations for the entire dataset, refer to the nonmissing data columns of part b. 
+We create a summary table similar to the table in b, but this time we compare the means of smokers vs non-smokers. To see means/standard deviations for the entire dataset, refer to the nonmissing data columns of part b. We will discuss the differences between the groups in 3b.
 
 ```{r, include = TRUE}
 setDT(mom_dt)
