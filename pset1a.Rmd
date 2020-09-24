@@ -112,16 +112,8 @@ mom_dt[, miss := ifelse(complete.cases(mom_dt), 0, 1)]
 
 (b) If this were a real research project you would want to consider other approaches to missing data besides termination with extreme prejudice. What observations do you have to drop because of missing data? Might this affect your results? Do the data appear to be missing completely at random? How might you assess whether the data appear to be missing at random?
 
-We know from the last problem set that if the data are missing at random then dropping them should not affect our results of the effect of smoking on birth weight. However, if the missing data is correlated with the treatment (smoking) or the outcome (birth weight) then it could bias our results. From the table below, it does appear that there are differences in the missing and nonmissing data. For example, the mothers in the missing data are younger, less educated, less likely to be married, have more previous children, received less prenatal care, have a shorter time since the last birth, have a lower gestation period, and have lower birth weight. As discussed in the last problem set, we could formally assess whether the data is missing at random by regressing an indicator for the missing variable on the treatment. 
+We know from the last problem set that if the data are missing at random then dropping them should not affect our results of the effect of smoking on birth weight. However, if the missing data is correlated with the treatment (smoking) or the outcome (birth weight) then it could bias our results. In the table below, we present the means and standard deviations for a number of the variables between the missing and nonmissing group, the difference in the means, t-statistic, and p-value (under the null that the difference in means is 0). From the table, it does appear that there are differences in the missing and nonmissing data. For example, the mothers in the missing data are younger, less educated, less likely to be married, have more previous children, received less prenatal care, have a shorter time since the last birth, and have a lower gestation period. As discussed in the last problem set, we could formally assess whether the data is missing at random by regressing an indicator for the missing variable on the treatment. 
 
-In the table, we calculate the mean and standard deviation of the variables for the missing and nonmissing data. We also calculate the t-stat: 
-
-$$ t = \frac{Mean_m - Mean_{nm}}{\sqrt{\frac{Var_m}{n_m} + \frac{Var_{nm}}{n_{nm}}}}$$ 
-
-the degrees of freedom:
-
-$$ \frac{\frac{Var_m}{n_m} + \frac{Var_{nm}}{n_{nm}}}{\frac{(\frac{Var_m}{n_m})^2}{n_m-1} + \frac{(\frac{Var_{nm}}{n_{nm}})^2}{n_{nm}-1}}$$
-and the p-value which is the probability that the t-statistic achieves the value calculated.
 
 ```{r, include = TRUE}
 
@@ -159,6 +151,8 @@ print(xtable(compare_dt, caption = 'Difference in Means Missing v Nonmissing', d
       include.rownames = FALSE, size = "small", comment = FALSE)
 
 ```
+
+\newpage
 
 (c) Produce a summary table describing the final analysis data set.
 
@@ -230,3 +224,16 @@ mean_diff_birthweight <- mean(smoker$dbrwt) - mean(nonsmoker$dbrwt)
 print(mean_diff_birthweight)
 
 ```
+
+(b) Under what circumstances can one identify the average treatment effect of maternal smoking by comparing the unadjusted difference in mean birth weight of infants of smoking and non-smoking mothers? Estimate its impact under this assumption. Provide and comment on some evidence for or against the validity of the assumption. 
+
+We can identify the average treatment effect by comparing the unadjusted difference in means if the treatment (smoking) is randomly assigned. Under this assumption, we would estimate that smoking results in an effect of `r round(mean_diff_birthweight, 3)` grams (? check this) on birth weight. The mean of all birth weights is `r round(mean(mom_dt$dbrwt), 3)` so this represents a decrease of `r round(mean_diff_birthweight / mean(mom_dt$dbrwt), 3)`.
+
+However, based on our table in 2c, random assignment is likely not a valid assumption. Smokers and non smokers are different on many dimensions, some of which may affect birth weight. For example, smokers started prenatal care later and had fewer prenatal visits. 
+
+
+(c) Suppose that maternal smoking is randomly assigned conditional on the other observable "predetermined" determinants of infant birth weight. First discuss which (if any) of the variables contained in the data set can clearly be considered to be predetermined. In general, what kinds of variables can be considered predetermined and what kinds of variables cannot?
+
+In the dataset, we consider predetermined variables to mother and father's age, education, and marital status. ** any others?
+
+(d) What does ``selection on observables" imply about the relationship between maternal smoking and unobservable determinants of birth weight conditional on the observables? Use a basic linear regression model, in conjunction with your answer to (c), to estimate the impact of smoking and report your estimates. Under what circumstances is the average treatment effect identified?
