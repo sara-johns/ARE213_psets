@@ -102,9 +102,9 @@ mom_dt$drink5 <- replace(mom_dt$drink5, which(mom_dt$drink5 == 5, arr.ind = TRUE
 # 99 corresponds to "Unknown or not stated"
 mom_dt$wgain <- replace(mom_dt$wgain, which(mom_dt$wgain == 99, arr.ind = TRUE), NA)
 
-# Get rows with any missing value into one DT; remove all the rows with any missing value for main DT
-miss_dt <- mom_dt[!(complete.cases(mom_dt)),]
-mom_dt <- na.omit(mom_dt)
+# Make indicator for missing, will drop after comparison
+setDT(mom_dt)
+mom_dt[, miss := ifelse(complete.cases(mom_dt), 0, 1)]
 
 # Now mom_dt contains 114,610 observations instead of the original 120,461
 
@@ -126,36 +126,31 @@ and the p-value which is the probability that the t-statistic achieves the value
 ```{r, include = TRUE}
 
 # Compare missing to non missing
-compare_dt <- data.table("Variable" = c("Mother age", "Mother educ", "Marital status", "Prenatal adequacy", 
-                                        "Number living child", "# dead/living child", 
-                                        "Total birth/terminations", "Birth order", "Month prenatal began",
-                                        "Number prenatal visits", "Time since last birth", "Father age", 
-                                        "Father educ", "Gestation", "Child sex",
-                                        "Birth weight", "Number born", "One min Apgar", "Five min Apgar", 
-                                        "Anemia", "Cardiac disease", "Lung disease", "Diabetes", 
-                                        "Herpes", "Chron. hypertension", "Preg. hypertension", 
-                                        "Previous heavy birth", "Previous preterm", "Tobacco use", 
-                                        "Number cigarettes", "Alcohol use", "Number drinks", "Weight gain"),
-                         "Miss means" = round(as.numeric(lapply(miss_dt[, c(6, 9:18, 20, 22, 
-                                                                          25:30, 33:43, 45:46, 48)],
-                                                                          mean, na.rm=TRUE)), 3),
-                         "Miss sd" = round(as.numeric(lapply(miss_dt[, c(6, 9:18, 20, 22, 25:30, 33:43,
-                                                                       45:46, 48)],
-                                                                       sd, na.rm=TRUE)), 3),
-                         "Nonmiss means" = round(as.numeric(lapply(mom_dt[, c(6, 9:18, 20, 22, 25:30,
-                                                                            33:43, 45:46, 48)],
-                                                                            mean)), 3),
-                         "Nonmiss sd" = round(as.numeric(lapply(mom_dt[, c(6, 9:18, 20, 22, 
-                                                                         25:30, 33:43, 45:46, 48)], 
-                                                                         sd)), 3))
+compare_dt <- transpose(mom_dt[,lapply(.SD, mean, na.rm=TRUE), .SDcols = c(6, 9:18, 20, 22, 25:30, 33:43, 45:46, 48), by = miss])
+compare_dt <- cbind(compare_dt, transpose(mom_dt[,lapply(.SD, sd, na.rm=TRUE), .SDcols = c(6, 9:18, 20, 22, 25:30, 33:43, 45:46, 48), by = miss]))
+colnames(compare_dt) <- c("Nonmiss means", "Miss means", "Nonmiss sd", "Miss sd")
+compare_dt <- compare_dt[2:34,]
+compare_dt[, Variable := c("Mother age", "Mother educ", "Marital status", "Prenatal adequacy", "Number living child",
+           "Number dead or living child", "Total live birth or terminations", "Birth order", "Month prenatal began",
+           "Number prenatal visits", "Time since last birth", "Father age", "Father educ", "Gestation", "Child sex",
+           "Birth weight", "Number born", "One min Apgar", "Five min Apgar", "Anemia", "Cardiac disease",
+           "Lung disease", "Diabetes", "Herpes", "Chron. hypertension", "Preg. hypertension", "Previous heavy birth",
+           "Previous preterm", "Tobacco use", "Number cigarettes", "Alcohol use", "Number drinks", "Weight gain")]
 
-# add difference and t stat
-compare_dt[, "Difference" := `Miss means` - `Nonmiss means`]
-compare_dt[, "t-stat" := Difference / sqrt(((`Miss sd`)^2/nrow(miss_dt)) + ((`Nonmiss sd`)^2/nrow(mom_dt)))]
-compare_dt[, "DF" := round(((((`Miss sd`)^2/nrow(miss_dt)) + ((`Nonmiss sd`)^2/nrow(mom_dt)))^2) /
-             ((((`Miss sd`)^2/nrow(miss_dt))^2/(nrow(miss_dt) - 1)) + 
-             (((`Nonmiss sd`)^2/nrow(mom_dt))^2/(nrow(mom_dt) - 1))), 0)]
-compare_dt[, "p-Value" := round(2*pt(-abs(`t-stat`), DF), 3)] 
+formulas <- paste("mom_dt$", names(mom_dt)[c(6, 9:18, 20, 22, 25:30, 33:43, 45:46, 48)], "~ mom_dt$miss")
+t_test <- t(sapply(formulas, function(f) {      
+  res <- t.test(as.formula(f))
+  c(res$statistic, p.value=res$p.value)      
+}))
+
+colnames(t_test) <- c("t-stat", "p-value")
+
+compare_dt <- cbind(compare_dt, t_test)
+compare_dt[, Difference := `Nonmiss means` - `Miss means`]
+
+setcolorder(compare_dt, c("Variable", "Nonmiss means", "Nonmiss sd", "Miss means", "Miss sd", "Difference", "t-stat", "p-value"))
+
+mom_dt <- na.omit(mom_dt)
 ```
 
 ```{r, include=TRUE, results = 'asis'}
@@ -170,43 +165,35 @@ print(xtable(compare_dt, caption = 'Difference in Means Missing v Nonmissing', d
 We create a summary table similar to the table in b, but this time we compare the means of smokers vs non-smokers. To see means/standard deviations for the entire dataset, refer to the nonmissing data columns of part b. We will discuss the differences between the groups in 3b.
 
 ```{r, include = TRUE}
-setDT(mom_dt)
-# Summary table: broken out by smoker/non smoker
-summary_dt <- data.table("Variable" = c("Mother age", "Mother educ", "Marital status", "Prenatal adequacy", 
-                                        "Number living child", "# dead/living child", 
-                                        "Total birth/terminations", "Birth order", "Month prenatal began",
-                                        "Number prenatal visits", "Time since last birth", "Father age", 
-                                        "Father educ", "Gestation", "Child sex",
-                                        "Birth weight", "Number born", "One min Apgar", "Five min Apgar", 
-                                        "Anemia", "Cardiac disease", "Lung disease", "Diabetes", 
-                                        "Herpes", "Chron. hypertension", "Preg. hypertension", 
-                                        "Previous heavy birth", "Previous preterm", 
-                                        "Number cigarettes", "Alcohol use", "Number drinks", "Weight gain"),
-                         "Smoker mean" = round(as.numeric(lapply(mom_dt[tobacco == 1, 
-                                                                        c(6, 9:18, 20, 22, 25:30, 33:41, 43,
-                                                                        45:46, 48)],
-                                                                        mean)), 3),
-                         "Smoker sd" = round(as.numeric(lapply(mom_dt[tobacco == 1, 
-                                                                      c(6, 9:18, 20, 22, 25:30,
-                                                                      33:41, 43, 45:46, 48)],
-                                                                      sd)), 3),
-                         "Nonsmoker mean" = round(as.numeric(lapply(mom_dt[tobacco == 2, 
-                                                                           c(6, 9:18, 20, 22, 
-                                                                           25:30, 33:41, 43, 45:46, 48)], 
-                                                                           mean)), 3),
-                         "Nonsmoker sd" = round(as.numeric(lapply(mom_dt[tobacco == 2, c(6, 9:18, 20, 22, 
-                                                                           25:30, 33:41, 43, 45:46, 48)], 
-                                                                           sd)), 3))
+# Recode to binary 0/1 treatment
+# tobacco is 1: yes, tobacco use during pregnancy and 2: no tobacco use during pregnancy
+mom_dt[, tobacco := ifelse(tobacco==2, 0, 1)]
 
-# add difference and t stat
-summary_dt[, "Diff" := `Smoker mean` - `Nonsmoker mean`]
-summary_dt[, "t-stat" := Diff / sqrt(((`Smoker sd`)^2/nrow(mom_dt[tobacco==1])) + 
-                                             ((`Nonsmoker sd`)^2/nrow(mom_dt[tobacco==2])))]
-summary_dt[, "DF" := round(((((`Smoker sd`)^2/nrow(mom_dt[tobacco==1])) + 
-                               ((`Nonsmoker sd`)^2/nrow(mom_dt[tobacco==2])))^2) /
-             ((((`Smoker sd`)^2/nrow(mom_dt[tobacco==1]))^2/(nrow(mom_dt[tobacco==1]) - 1)) + 
-             (((`Nonsmoker sd`)^2/nrow(mom_dt[tobacco==2]))^2/(nrow(mom_dt[tobacco==2]) - 1))), 0)]
-summary_dt[, "p-Value" := round(2*pt(-abs(`t-stat`), DF), 3)] 
+# Compare smoker to nonsmoker
+summary_dt <- transpose(mom_dt[,lapply(.SD, mean, na.rm=TRUE), .SDcols = c(6, 9:18, 20, 22, 25:30, 33:41, 43, 45:46, 48), by = tobacco])
+summary_dt <- cbind(summary_dt, transpose(mom_dt[,lapply(.SD, sd, na.rm=TRUE), .SDcols = c(6, 9:18, 20, 22, 25:30, 33:41, 43, 45:46, 48), by = tobacco]))
+colnames(summary_dt) <- c("Nonsmoker means", "Smoker means", "Nonsmoker sd", "Smoker sd")
+summary_dt <- summary_dt[2:33,]
+summary_dt[, Variable := c("Mother age", "Mother educ", "Marital status", "Prenatal adequacy", "Number living child",
+           "Number dead or living child", "Total live birth or terminations", "Birth order", "Month prenatal began",
+           "Number prenatal visits", "Time since last birth", "Father age", "Father educ", "Gestation", "Child sex",
+           "Birth weight", "Number born", "One min Apgar", "Five min Apgar", "Anemia", "Cardiac disease",
+           "Lung disease", "Diabetes", "Herpes", "Chron. hypertension", "Preg. hypertension", "Previous heavy birth",
+           "Previous preterm", "Number cigarettes", "Alcohol use", "Number drinks", "Weight gain")]
+
+formulas <- paste("mom_dt$", names(mom_dt)[c(6, 9:18, 20, 22, 25:30, 33:41, 43, 45:46, 48)], "~ mom_dt$tobacco")
+t_test <- t(sapply(formulas, function(f) {      
+  res <- t.test(as.formula(f))
+  c(res$statistic, p.value=res$p.value)      
+}))
+
+colnames(t_test) <- c("t-stat", "p-value")
+
+summary_dt <- cbind(summary_dt, t_test)
+summary_dt[, Difference := `Nonsmoker means` - `Smoker means`]
+
+setcolorder(summary_dt, c("Variable", "Nonsmoker means", "Nonsmoker sd", "Smoker means", "Smoker sd", "Difference", "t-stat", "p-value"))
+
 ```
 
 ```{r, include=TRUE, results = 'asis'}
@@ -226,10 +213,9 @@ print(xtable(summary_dt, caption = 'Difference in Means Smoker v Nonsmoker', dig
 # According to the codebook, omaps is the one minute APGAR score and fmaps is the five minute APGAR score
 # Both are a score from 0-10 
 # dbrwt (assuming that corresponds to dbirwt in codebook) is birthweight in grams
-# tobacco is 1: yes, tobacco use during pregnancy and 2: no tobacco use during pregnancy
 
 smoker <- subset(mom_dt, mom_dt$tobacco == 1)
-nonsmoker <- subset(mom_dt, mom_dt$tobacco == 2)
+nonsmoker <- subset(mom_dt, mom_dt$tobacco == 0)
 
 # Mean difference in one minute APGAR score by smoking status
 mean_diff_1min_apgar <- mean(smoker$omaps) - mean(nonsmoker$omaps)
