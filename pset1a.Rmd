@@ -26,9 +26,9 @@ library(pacman)
 p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom)
 
 # Directory 
-#base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
-# base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
-base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
+# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+# base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 
 # read data
 mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
@@ -55,7 +55,7 @@ binom.confint(98, 26107, method=c("asymptotic", "wilson", "agresti-coull"), type
 
 (b) Discuss either formally or intuitively the critical assumption that underlies your confidence intervals. Give a 2 or 3 sentence quote from Snow's description (reproduced in Freedman (1991)) that supports this assumption.
 
-To be confident that it is the choice of water company that is causing the difference in $p$ and not some other factor, we need to be sure that there are not systematic differences between those who get their water from Southwark and Vauxhall and those who get it from Lambeth. John Snow argues that the two groups of people are comparable: "both rich and poor, both large houses and small" etc. In that case, we are reasonably certain that the difference in water company is what causes the difference in mortality risk.
+To be confident that it is the choice of water company that is causing the difference in $p$ and not some other factor, we need to be sure that there are not systematic differences between those who get their water from Southwark and Vauxhall and those who get it from Lambeth. John Snow argues that the two groups of people are comparable: "Each company supplies both rich and poor, both large houses and small; there is no difference either in the condition or occupation of the persons receiving the water of the different Companies... As there is no difference whatever in the houses or the people receiving the supply of the two Water Companies, or in any of the physical conditions with which they are surrounded, it is obvious that no experiment could have been devised which would more thoroughly test the effect of water supply on the progress of cholera than this, which circumstances placed ready made before the observer." In that case, we are reasonably certain that the difference in water company is what causes the difference in mortality risk.
 
 ## Section 2
 
