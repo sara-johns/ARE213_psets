@@ -26,8 +26,9 @@ library(pacman)
 p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom)
 
 # Directory 
-base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+#base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
 # base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 
 # read data
 mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
@@ -68,8 +69,7 @@ The data here are "real" and quite imperfect, which will help simulate the unple
 
 ```{r, include = TRUE}
 # According to the codebook, for the following medical risk factor variables, 8 corresponds to 
-# "Factor not on certificate" and 9 corresponds to "Factor not classifiable": cardiac, lung, 
-# diabetes, herpes, chyper, phyper, pre4000, preterm
+# "Factor not on certificate" and 9 corresponds to "Factor not classifiable": cardiac, lung, diabetes, herpes, chyper, phyper, pre4000, preterm
 
 med_risk_factors <- c('cardiac', 'lung', 'diabetes', 'herpes', 'chyper', 'phyper', 'pre4000', 'preterm')
 
@@ -227,13 +227,28 @@ print(mean_diff_birthweight)
 
 (b) Under what circumstances can one identify the average treatment effect of maternal smoking by comparing the unadjusted difference in mean birth weight of infants of smoking and non-smoking mothers? Estimate its impact under this assumption. Provide and comment on some evidence for or against the validity of the assumption. 
 
-We can identify the average treatment effect by comparing the unadjusted difference in means if the treatment (smoking) is randomly assigned. Under this assumption, we would estimate that smoking results in an effect of `r round(mean_diff_birthweight, 3)` grams (? check this) on birth weight. The mean of all birth weights is `r round(mean(mom_dt$dbrwt), 3)` so this represents a decrease of `r round(mean_diff_birthweight / mean(mom_dt$dbrwt), 3)`.
+We can identify the average treatment effect by comparing the unadjusted difference in means if the treatment (smoking) is randomly assigned. Under this assumption, we would estimate that smoking results in an effect of `r round(mean_diff_birthweight, 3)` grams (? check this) on birth weight. The mean of all birth weights is `r round(mean(mom_dt$dbrwt), 3)` so this represents a decrease of `r round(mean_diff_birthweight / mean(mom_dt$dbrwt), 3)` percent.
 
 However, based on our table in 2c, random assignment is likely not a valid assumption. Smokers and non smokers are different on many dimensions, some of which may affect birth weight. For example, smokers started prenatal care later and had fewer prenatal visits. 
 
 
 (c) Suppose that maternal smoking is randomly assigned conditional on the other observable "predetermined" determinants of infant birth weight. First discuss which (if any) of the variables contained in the data set can clearly be considered to be predetermined. In general, what kinds of variables can be considered predetermined and what kinds of variables cannot?
 
-In the dataset, we consider predetermined variables to mother and father's age, education, and marital status. ** any others?
+A variable can be considered ``predetermined" if it affects selection into treatment (smoking), and there is no reverse causality between the treatment and the predetermined variable. A variable that both affects selection into treatment, but may also be affected by treatment status, is not considered predetermined. In our data set, the variables on state of residence, characteristics of county of residence, age, race, education, and marital status of the mother and the father can be considered to be "predetermined." In contrast, variables such as prenatal care, alcohol use during pregnancy, weight gain during pregnancy, and birth month (i.e. whether the birth is premature) would not be considered predetermined, since they may be affected by the treatment status. 
 
 (d) What does ``selection on observables" imply about the relationship between maternal smoking and unobservable determinants of birth weight conditional on the observables? Use a basic linear regression model, in conjunction with your answer to (c), to estimate the impact of smoking and report your estimates. Under what circumstances is the average treatment effect identified?
+
+The key assumption underlying a ``selction on observables" design is that the treatment is as good as randomly assigned after we condition on observables. In other words, we assume that we observe *all* the factors that affect treatment assignment (smoking) and are correlated with the potential outcomes (birth weight). If there is systematic selection into treatment, we assume this selection is only a function of the observabless. That is, we assume that maternal smoking is uncorrelated with unobservable determinants of birth weight conditional on the observables. If these assumptions hold, then a regression of maternal smoking on birth weight, conditioning on observables, will estimate the ATE. 
+
+In a selection on observables design, we estimate the model:
+$$birthweight_i = \alpha_i + \beta Smoking_i + \delta_1 mother\_age_i + \delta_2 mother\_educ_i + \delta_3 mother\_race_i + \delta_4 marital\_status_i + \delta_5 father\_age_i + \\
+\delta_6 father\_educ + \delta_7 state + \delta_8 county\_chars + \epsilon_i$$
+
+```{r, include = TRUE}
+# Selection on observables model
+lm1 <- lm(dbrwt ~ tobacco + dmage + dmeduc + mrace3 + dmar + dfage + dfeduc + stresfip + cntocpop, mom_dt)
+
+summary(lm1)
+```
+
+If our selection on observables assumption holds, we can interpret these results as indicating that ceteris paribus, maternal smoking has an ATE of decreasing birth weight by 211.8 grams (a decrease of `r round(211.8008/3384.2925,3)` percent from a base of 3,384.3 grams), which is statistically significant at the 1% level. 
