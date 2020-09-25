@@ -26,8 +26,8 @@ library(pacman)
 p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom)
 
 # Directory 
-base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
-# base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
 # base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 
 # read data
@@ -87,12 +87,11 @@ The data here are "real" and quite imperfect, which will help simulate the unple
 
 med_risk_factors <- c('cardiac', 'lung', 'diabetes', 'herpes', 'chyper', 'phyper', 'pre4000', 'preterm')
 
+# Below, arr.ind = TRUE returns the indices at which the row equals a certain value
 for (var in med_risk_factors){
   mom_dt[var] <- replace(mom_dt[var], which(mom_dt[var] == 8, arr.ind = TRUE), NA)
   mom_dt[var] <- replace(mom_dt[var], which(mom_dt[var] == 9, arr.ind = TRUE), NA)
 }
-
-# Below, arr.ind = TRUE returns the indices at which the row equals a certain value
 
 # According to the codebook, for tobacco, 9 corresponds to "Unknown or not stated"
 mom_dt$tobacco <- replace(mom_dt$tobacco, which(mom_dt$tobacco == 9, arr.ind = TRUE), NA)
@@ -299,7 +298,7 @@ print(mean_diff_birthweight)
 We can identify the average treatment effect by comparing the unadjusted difference in means if the treatment (smoking) is randomly assigned. Under this assumption, we would estimate that smoking results in an effect of `r round(mean_diff_birthweight, 3)` grams on birth weight. The mean of all birth weights is `r round(mean(mom_dt$dbrwt), 3)` so this represents a decrease of `r round(mean_diff_birthweight / mean(mom_dt$dbrwt), 3)*100` percent.
 
 \bigskip
-However, based on our table in 2c, random assignment is likely not a valid assumption. Smokers and non smokers are different on many dimensions, some of which may affect birth weight. For example, smokers started prenatal care later and had fewer prenatal visits. 
+However, based on our table in 2c, random assignment is likely not a valid assumption. Smokers and non smokers are different on many dimensions, some of which may affect birth weight. For example, smokers started prenatal care later and had fewer prenatal visits. Additionally, smokers had more drinks per week than non smokers. Other factors which may or may not have affected birth weight, but do differ between smokers and non smokers include that smokers were younger, less educated, and less likely to be married than non smokers.
 
 \bigskip
 (c) Suppose that maternal smoking is randomly assigned conditional on the other observable "predetermined" determinants of infant birth weight. First discuss which (if any) of the variables contained in the data set can clearly be considered to be predetermined. In general, what kinds of variables can be considered predetermined and what kinds of variables cannot?
