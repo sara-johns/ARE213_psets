@@ -26,9 +26,9 @@ library(pacman)
 p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom)
 
 # Directory 
-base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+#base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
 # base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
-# base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
+ base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 
 # read data
 mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
@@ -41,9 +41,15 @@ mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
 
 (a) Develop an approximate 95% confidence interval for "Deaths per 10,000 Houses" for Southwark and Vaxhall customers. Develop another 95% CI for the same quantity for Lambeth. Do the confidence intervals overlap?
 
+\bigskip
+
 Note that that we're estimating $p$ for a binomial distribution since deaths per 10,000 houses is the same as deaths per person (of course, scaled by persons per 10,000 households). Are we really dealing with a binomial distribution? Probably not, but it might not be a bad approximation if we think contaminated water is distributed randomly across space-time (so one person's probability exposure and subsequent death is the same and independent of another person's). Also, not everyone is equally susceptible to the virus (some have a higher $p$ than others), but our estimate of $p$ can be interpreted as an average $p$.
 
+\bigskip
+
 There are various ways to construct a confidence interval for an estimated binomial distribution. We use three different methods, all of which provide very similar estimates. The confidence intervals do not overlap.
+
+\bigskip
 
 ```{r, include = TRUE}
 # Southwark and Vauxhall
@@ -52,8 +58,11 @@ binom.confint(1263, 40046, method=c("asymptotic", "wilson", "agresti-coull"), ty
 # Lambeth
 binom.confint(98, 26107, method=c("asymptotic", "wilson", "agresti-coull"), type="central")
 ```
+\bigskip
 
 (b) Discuss either formally or intuitively the critical assumption that underlies your confidence intervals. Give a 2 or 3 sentence quote from Snow's description (reproduced in Freedman (1991)) that supports this assumption.
+
+\bigskip
 
 To be confident that it is the choice of water company that is causing the difference in $p$ and not some other factor, we need to be sure that there are not systematic differences between those who get their water from Southwark and Vauxhall and those who get it from Lambeth. John Snow argues that the two groups of people are comparable: "Each company supplies both rich and poor, both large houses and small; there is no difference either in the condition or occupation of the persons receiving the water of the different Companies... As there is no difference whatever in the houses or the people receiving the supply of the two Water Companies, or in any of the physical conditions with which they are surrounded, it is obvious that no experiment could have been devised which would more thoroughly test the effect of water supply on the progress of cholera than this, which circumstances placed ready made before the observer." In that case, we are reasonably certain that the difference in water company is what causes the difference in mortality risk.
 
@@ -61,15 +70,20 @@ To be confident that it is the choice of water company that is causing the diffe
 
 We now move to some analysis of real data. The data portions of Problem Sets 1a and 1b are based heavily on the paper Almond, Chay, and Lee (2005), and problem sets from Ken Chay and John DiNardo based on some of the data used in the paper. The goal of this assignment is to examine the research question: what is the causal effect of maternal smoking during pregnancy on infant birthweight and other infant health outcomes. The data for the problem set is an extract of all births from the 1993 National Natality Detail Files for Pennsylvania. Each observation represents an infant-mother match. The data in Stata format can be downloaded from the bCourses website. There should be 48 variables in the data and, after you are finished with the cleaning steps desribed below, 114,610 observations. 
 
+\bigskip
+
 The data here are "real" and quite imperfect, which will help simulate the unpleasantness of real world data work. Unlike the real world where you will confront this bleak situation largely alone, I will provide you with some hints for working your way through the raw data. You can download part of the codebook for the data to help you figure out the relevant variables.
 
 2. The first order of business is to go through the code book, decide on the relevant variables, and process the data. This involves several steps: 
 
 (a) Fix missing values. In the data set several variables take on a value of, say, 9999 if missing. We have already checked for missing observations for about 2/3 of the variables. The remaining variables need to be checked and are the last 15 in the variables list (i.e. from 'cardiac' to 'wgain'). Refer to the codebook for missing value codes. Produce an analysis data set that drops any observations with missing values. 
+\bigskip
+
 
 ```{r, include = TRUE}
 # According to the codebook, for the following medical risk factor variables, 8 corresponds to 
-# "Factor not on certificate" and 9 corresponds to "Factor not classifiable": cardiac, lung, diabetes, herpes, chyper, phyper, pre4000, preterm
+# "Factor not on certificate" and 9 corresponds to "Factor not classifiable": cardiac, lung, diabetes, 
+#herpes, chyper, phyper, pre4000, preterm
 
 med_risk_factors <- c('cardiac', 'lung', 'diabetes', 'herpes', 'chyper', 'phyper', 'pre4000', 'preterm')
 
@@ -106,14 +120,15 @@ mom_dt$wgain <- replace(mom_dt$wgain, which(mom_dt$wgain == 99, arr.ind = TRUE),
 setDT(mom_dt)
 mom_dt[, miss := ifelse(complete.cases(mom_dt), 0, 1)]
 
-# Now mom_dt contains 114,610 observations instead of the original 120,461
-
 ```
 
 (b) If this were a real research project you would want to consider other approaches to missing data besides termination with extreme prejudice. What observations do you have to drop because of missing data? Might this affect your results? Do the data appear to be missing completely at random? How might you assess whether the data appear to be missing at random?
 
+\bigskip
+
 We know from the last problem set that if the data are missing at random then dropping them should not affect our results of the effect of smoking on birth weight. However, if the missing data is correlated with the treatment (smoking) or the outcome (birth weight) then it could bias our results. In the table below, we present the means and standard deviations for a number of the variables between the missing and nonmissing group, the difference in the means, t-statistic, and p-value (under the null that the difference in means is 0). From the table, it does appear that there are differences in the missing and nonmissing data. For example, the mothers in the missing data are younger, less educated, less likely to be married, have more previous children, received less prenatal care, have a shorter time since the last birth, and have a lower gestation period. As discussed in the last problem set, we could formally assess whether the data is missing at random by regressing an indicator for the missing variable on the treatment. 
 
+\bigskip
 
 ```{r, include = TRUE}
 
@@ -156,7 +171,11 @@ print(xtable(compare_dt, caption = 'Difference in Means Missing v Nonmissing', d
 
 (c) Produce a summary table describing the final analysis data set.
 
+\bigskip
+
 We create a summary table similar to the table in b, but this time we compare the means of smokers vs non-smokers. To see means/standard deviations for the entire dataset, refer to the nonmissing data columns of part b. We will discuss the differences between the groups in 3b.
+
+\bigskip
 
 ```{r, include = TRUE}
 # Recode to binary 0/1 treatment
@@ -203,6 +222,9 @@ print(xtable(summary_dt, caption = 'Difference in Means Smoker v Nonsmoker', dig
 3. The next part of the assignment is to try to estimate the "causal" effect of maternal smoking during pregnancy on infant birth weight. Let's start out using techniques that are familiar, and think about whether they are likely to work in this context. Answer the following questions. 
 
 (a) Compute the mean difference in APGAR scores (both five and one minute versions) as well as birthweight by smoking status.
+
+\bigskip
+
 ```{r, include = TRUE}
 # According to the codebook, omaps is the one minute APGAR score and fmaps is the five minute APGAR score
 # Both are a score from 0-10 
@@ -227,28 +249,63 @@ print(mean_diff_birthweight)
 
 (b) Under what circumstances can one identify the average treatment effect of maternal smoking by comparing the unadjusted difference in mean birth weight of infants of smoking and non-smoking mothers? Estimate its impact under this assumption. Provide and comment on some evidence for or against the validity of the assumption. 
 
+\bigskip
+
 We can identify the average treatment effect by comparing the unadjusted difference in means if the treatment (smoking) is randomly assigned. Under this assumption, we would estimate that smoking results in an effect of `r round(mean_diff_birthweight, 3)` grams on birth weight. The mean of all birth weights is `r round(mean(mom_dt$dbrwt), 3)` so this represents a decrease of `r round(mean_diff_birthweight / mean(mom_dt$dbrwt), 3)*100` percent.
 
+\bigskip
 However, based on our table in 2c, random assignment is likely not a valid assumption. Smokers and non smokers are different on many dimensions, some of which may affect birth weight. For example, smokers started prenatal care later and had fewer prenatal visits. 
 
-
+\bigskip
 (c) Suppose that maternal smoking is randomly assigned conditional on the other observable "predetermined" determinants of infant birth weight. First discuss which (if any) of the variables contained in the data set can clearly be considered to be predetermined. In general, what kinds of variables can be considered predetermined and what kinds of variables cannot?
 
-A variable can be considered ``predetermined" if it affects selection into treatment (smoking), and there is no reverse causality between the treatment and the predetermined variable. A variable that both affects selection into treatment, but may also be affected by treatment status, is not considered predetermined. In our data set, the variables on state of residence, characteristics of county of residence, age, race, education, and marital status of the mother and the father can be considered to be "predetermined." In contrast, variables such as prenatal care, alcohol use during pregnancy, weight gain during pregnancy, and birth month (i.e. whether the birth is premature) would not be considered predetermined, since they may be affected by the treatment status. 
+\bigskip
 
+A variable can be considered ``predetermined" if it affects selection into treatment, but is not in turn affected by the treatment variable - that is while there is correlation between the predetermined and the treatment variable, that correlation should be driven by the effect of the predetermined variable on the treatment variable, and not the reverse direction. 
+
+\bigskip
+
+In our data set, our treatment variable is smoking during pregnancy, so any variables that may be affected by smoking during pregnancy would not be considered predetermined variables. For example, it is likely that smoking during pregnancy affects prenatal care, alcohol use during pregnancy, weight gain during pregnancy, birth month (i.e. whether the birth is premature), and the health condition of the mother (i.e. anemia, diabetes, cardiac disease, etc.). Those variables would not be considered predetermined.
+
+\bigskip
+
+However, variables that could affect the likelihood of a mother smoking during pregnancy, but would not in turn be affected by a mother's prenatal smoking status, would be considered predetermined. In our data set, variables such as state of residence, population density of county, and mother's race, all arguably fit this criteria and can be considered predetermined variables. Other variables, such as mother's age, mother's education, mother's marital status, father's race, father's age, and father's education, could also be considered predetermined variables, although there is more ambiguity in these cases. Particularly if we think smoking during pregnancy reflects a higher probability of smoking before pregnancy and in early life more generally, then early smoking habits could affect the age at which a women becomes pregnant, the education level she has when she is pregnant, her marital status, and if married, the spouse she chooses and subsequently their characteristics. If that is the case, then smoking during pregnancy could affect these variables and thus they should not be considered "predetermined." However, if we define our treatment narrowly as smoking during pregnancy, without inferring anything about smoking habits prior to pregnancy, than the choice to smoke during pregnancy should not affect a mother's age, education level, father's age, or father's education (marital status could still be ambiguous). From this perspective, these additional variables could arguably also be considered predetermined. 
+ 
+ \bigskip
+ 
 (d) What does ``selection on observables" imply about the relationship between maternal smoking and unobservable determinants of birth weight conditional on the observables? Use a basic linear regression model, in conjunction with your answer to (c), to estimate the impact of smoking and report your estimates. Under what circumstances is the average treatment effect identified?
+
+\bigskip
 
 The key assumption underlying a ``selction on observables" design is that the treatment is as good as randomly assigned after we condition on observables. In other words, we assume that we observe *all* the factors that affect treatment assignment (smoking) and are correlated with the potential outcomes (birth weight). If there is systematic selection into treatment, we assume this selection is only a function of the observabless. That is, we assume that maternal smoking is uncorrelated with unobservable determinants of birth weight conditional on the observables. If these assumptions hold, then a regression of maternal smoking on birth weight, conditioning on observables, will estimate the ATE. 
 
-In a selection on observables design, we estimate the model:
-$$birthweight_i = \alpha_i + \beta Smoking_i + \delta_1 mother\_age_i + \delta_2 mother\_educ_i + \delta_3 mother\_race_i + \delta_4 marital\_status_i + \delta_5 father\_age_i + \\
-\delta_6 father\_educ + \delta_7 state + \delta_8 county\_chars + \epsilon_i$$
+\bigskip
 
+In a selection on observables design we estimate two models, based on whether we take a more strict or more relaxed classification of which variables are predetermined (as discussed in part c above): 
+
+\bigskip 
+
+With a stricter definition of predetermined variables, we estimate
+
+\begin{equation}
+birthweight_i = \alpha_i + \beta Smoking_i + \delta_1 state_i + \delta_2 countypop_i + \delta_3 mother\_race + \epsilon_i
+\end{equation}
+With a more relaxed definition of predetermined variables, we estimate 
+\begin{equation}
+\begin{split}
+birthweight_i = \alpha_i + \beta Smoking_i + \delta_1 state_i + \delta_2 countypop_i + \delta_3 mother\_race + \delta_4 mother\_age_i + \\ 
+\delta_5 mother\_educ_i + \delta_6 marital\_status_i + \delta_7 father\_age_i + \delta_8 father\_educ + \epsilon_i
+\end{split}
+\end{equation}
 ```{r, include = TRUE}
-# Selection on observables model
-lm1 <- lm(dbrwt ~ tobacco + dmage + dmeduc + mrace3 + dmar + dfage + dfeduc + stresfip + cntocpop, mom_dt)
-
+# Selection on observables model - strict definition of predetermined variables
+lm1 <- lm(dbrwt ~ tobacco + factor(stresfip) + cntocpop + factor(mrace3), mom_dt) 
 summary(lm1)
+
+# Selection on observables model - relaxed definition of predetermined variables
+lm2 <- lm(dbrwt ~ tobacco + factor(stresfip) + cntocpop + factor(mrace3) + dmage + dmeduc + factor(dmar) + dfage + dfeduc, mom_dt)
+
+summary(lm2)
 ```
 
-If our selection on observables assumption holds, we can interpret these results as indicating that ceteris paribus, maternal smoking has an ATE of decreasing birth weight by 211.8 grams (a decrease of `r round(211.8008/3384.2925,3)` percent from a base of 3,384.3 grams), which is statistically significant at the 1% level. 
+If our selection on observables assumption holds, we can interpret these results as indicating the causal effect of maternal smoking on birth weight. Specifically, in our estimation of (1), we can interpret our results as ceteris paribus, maternal smoking has an ATE of decreasing birth weight by 246.603 grams (a decrease of `r round((246.603/3306.314)*100,3)` percent from a base of 3306.314 grams - note that the omitted categories are white, foreign residents), which is statistically significant at the 1% level. In our estimation of (2), our results indicate that ceteris paribus, maternal smoking has an ATE of decreasing birth weight by 213.38 grams (a decrease of `r round((213.3799/3148.7055)*100,3)` percent from a base of 3148.71 grams - where the omitted category is white, married, foreign residents), which is also significant at the 1% level. 
