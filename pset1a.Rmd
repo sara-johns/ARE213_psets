@@ -26,9 +26,9 @@ library(pacman)
 p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom)
 
 # Directory 
-#base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
 # base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
- base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
+# base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 
 # read data
 mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
@@ -126,25 +126,57 @@ mom_dt[, miss := ifelse(complete.cases(mom_dt), 0, 1)]
 
 \bigskip
 
-We know from the last problem set that if the data are missing at random then dropping them should not affect our results of the effect of smoking on birth weight. However, if the missing data is correlated with the treatment (smoking) or the outcome (birth weight) then it could bias our results. In the table below, we present the means and standard deviations for a number of the variables between the missing and nonmissing group, the difference in the means, t-statistic, and p-value (under the null that the difference in means is 0). From the table, it does appear that there are differences in the missing and nonmissing data. For example, the mothers in the missing data are younger, less educated, less likely to be married, have more previous children, received less prenatal care, have a shorter time since the last birth, and have a lower gestation period. As discussed in the last problem set, we could formally assess whether the data is missing at random by regressing an indicator for the missing variable on the treatment. 
+We know from the last problem set that if the data are missing at random then dropping them should not affect our results of the effect of smoking on birth weight. However, if the missing data is correlated with the treatment (smoking) or the outcome (birth weight) then it could bias our results. In tables 1 and 2 at the end of this document, we present the means and standard deviations for a number of the variables between the missing and nonmissing group, the difference in the means, t-statistic, and p-value (under the null that the difference in means is 0). We also present the proportion of missing data by each categorical group, though we do not calculate a statistical test for these variables. From the table, it does appear that there are differences in the missing and nonmissing data. For example, the mothers in the missing data are younger, less educated, less likely to be married, have more previous children, received less prenatal care, have a shorter time since the last birth, and have a lower gestation period. As discussed in the last problem set, we could formally assess whether the data is missing at random by regressing an indicator for the missing variable on the treatment. 
 
 \bigskip
 
 ```{r, include = TRUE}
-
 # Compare missing to non missing
-compare_dt <- transpose(mom_dt[,lapply(.SD, mean, na.rm=TRUE), .SDcols = c(6, 9:18, 20, 22, 25:30, 33:43, 45:46, 48), by = miss])
-compare_dt <- cbind(compare_dt, transpose(mom_dt[,lapply(.SD, sd, na.rm=TRUE), .SDcols = c(6, 9:18, 20, 22, 25:30, 33:43, 45:46, 48), by = miss]))
-colnames(compare_dt) <- c("Nonmiss means", "Miss means", "Nonmiss sd", "Miss sd")
-compare_dt <- compare_dt[2:34,]
-compare_dt[, Variable := c("Mother age", "Mother educ", "Marital status", "Prenatal adequacy", "Number living child",
-           "Number dead or living child", "Total live birth or terminations", "Birth order", "Month prenatal began",
-           "Number prenatal visits", "Time since last birth", "Father age", "Father educ", "Gestation", "Child sex",
-           "Birth weight", "Number born", "One min Apgar", "Five min Apgar", "Anemia", "Cardiac disease",
-           "Lung disease", "Diabetes", "Herpes", "Chron. hypertension", "Preg. hypertension", "Previous heavy birth",
-           "Previous preterm", "Tobacco use", "Number cigarettes", "Alcohol use", "Number drinks", "Weight gain")]
+# categorical 
+birth_attendant <- mom_dt[,.(prop_miss = mean(miss)), by = birattnd]
+county_pop <- mom_dt[,.(prop_miss = mean(miss)), by = cntocpop]
+state <- mom_dt[,.(prop_miss = mean(miss)), by = stresfip]
+state <- state[order(stresfip)]
+race <- mom_dt[,.(prop_miss = mean(miss)), by = mrace3]
 
-formulas <- paste("mom_dt$", names(mom_dt)[c(6, 9:18, 20, 22, 25:30, 33:43, 45:46, 48)], "~ mom_dt$miss")
+category_dt <- rbind(birth_attendant, county_pop, state, race, use.names = FALSE)
+category_dt[, Variable := c("Attendant: M.D.", "Attendant: D.O.", "Attendant: C.N.M.", 
+                            "Attendant: Other Midwife", 
+                            "Attendant: Other", "County: 100k-250k", "County: 250k-500k", "County: 500k-1m", 
+                            "County: 1 million +", "State: Foreign", "State: AZ", "State: CA", 
+                            "State: CO", "State: CT", "State: DE", "State: DC", "State: FL", "State: GA",
+                            "State: IL", "State: IA", "State: KY", "State: ME", "State: MD", "State: MA",
+                            "State: MI", "State: MN", "State: MO", "State: NE", "State: NV", "State: NJ",
+                            "State: NY", "State: NC", "State: ND", "State: OH", "State: OK", "State: PA",
+                            "State: RI", "State: SC", "State: SD", "State: TN", "State: TX", "State: VA",
+                            "State: WA", "State: WV", "State: WY", "Race: White", "Race: Black", "Race: Other")]
+category_dt <- category_dt[, 2:3]
+colnames(category_dt) <- c("Proportion Missing", "Variable")
+setcolorder(category_dt, c("Variable", "Proportion Missing"))
+```
+
+```{r, include=TRUE}
+# numeric
+compare_dt <- transpose(mom_dt[,lapply(.SD, mean, na.rm=TRUE), .SDcols = c(2, 6, 9:18, 20, 22, 
+                                                                           25:30, 33:43, 45:46, 48), 
+                               by = miss])
+compare_dt <- cbind(compare_dt, transpose(mom_dt[,lapply(.SD, sd, na.rm=TRUE), .SDcols = c(2, 6, 9:18,
+                                                                                           20, 22, 25:30, 
+                                                                                           33:43, 45:46, 48), 
+                                                 by = miss]))
+colnames(compare_dt) <- c("Nonmiss means", "Miss means", "Nonmiss sd", "Miss sd")
+compare_dt <- compare_dt[2:35,]
+compare_dt[, Variable := c("Hospital", "Mother age", "Mother educ", "Marital status", "Prenatal adequacy", 
+                           "Number living child", "Number dead or living child", 
+                           "Total live birth or terminations", "Birth order", "Month prenatal began",
+                           "Number prenatal visits", "Time since last birth", "Father age", 
+                           "Father educ", "Gestation", "Child sex", "Birth weight", "Number born", 
+                           "One min Apgar", "Five min Apgar", "Anemia", "Cardiac disease",
+                           "Lung disease", "Diabetes", "Herpes", "Chron. hypertension", 
+                           "Preg. hypertension", "Previous heavy birth", "Previous preterm", "Tobacco use", 
+                           "Number cigarettes", "Alcohol use", "Number drinks", "Weight gain")]
+
+formulas <- paste("mom_dt$", names(mom_dt)[c(2, 6, 9:18, 20, 22, 25:30, 33:43, 45:46, 48)], "~ mom_dt$miss")
 t_test <- t(sapply(formulas, function(f) {      
   res <- t.test(as.formula(f))
   c(res$statistic, p.value=res$p.value)      
@@ -160,20 +192,11 @@ setcolorder(compare_dt, c("Variable", "Nonmiss means", "Nonmiss sd", "Miss means
 mom_dt <- na.omit(mom_dt)
 ```
 
-```{r, include=TRUE, results = 'asis'}
-
-print(xtable(compare_dt, caption = 'Difference in Means Missing v Nonmissing', digits = 2), 
-      include.rownames = FALSE, size = "small", comment = FALSE)
-
-```
-
-\newpage
-
 (c) Produce a summary table describing the final analysis data set.
 
 \bigskip
 
-We create a summary table similar to the table in b, but this time we compare the means of smokers vs non-smokers. To see means/standard deviations for the entire dataset, refer to the nonmissing data columns of part b. We will discuss the differences between the groups in 3b.
+We create summary tables similar to the tables in 2b, but this time we compare the means of smokers vs non-smokers. These tables are tables 3 and 4 at the end of the document. To see means/standard deviations for the entire dataset, refer to the nonmissing data columns of Table 2. We will discuss the differences between the groups in question 3b.
 
 \bigskip
 
@@ -183,18 +206,50 @@ We create a summary table similar to the table in b, but this time we compare th
 mom_dt[, tobacco := ifelse(tobacco==2, 0, 1)]
 
 # Compare smoker to nonsmoker
-summary_dt <- transpose(mom_dt[,lapply(.SD, mean, na.rm=TRUE), .SDcols = c(6, 9:18, 20, 22, 25:30, 33:41, 43, 45:46, 48), by = tobacco])
-summary_dt <- cbind(summary_dt, transpose(mom_dt[,lapply(.SD, sd, na.rm=TRUE), .SDcols = c(6, 9:18, 20, 22, 25:30, 33:41, 43, 45:46, 48), by = tobacco]))
-colnames(summary_dt) <- c("Nonsmoker means", "Smoker means", "Nonsmoker sd", "Smoker sd")
-summary_dt <- summary_dt[2:33,]
-summary_dt[, Variable := c("Mother age", "Mother educ", "Marital status", "Prenatal adequacy", "Number living child",
-           "Number dead or living child", "Total live birth or terminations", "Birth order", "Month prenatal began",
-           "Number prenatal visits", "Time since last birth", "Father age", "Father educ", "Gestation", "Child sex",
-           "Birth weight", "Number born", "One min Apgar", "Five min Apgar", "Anemia", "Cardiac disease",
-           "Lung disease", "Diabetes", "Herpes", "Chron. hypertension", "Preg. hypertension", "Previous heavy birth",
-           "Previous preterm", "Number cigarettes", "Alcohol use", "Number drinks", "Weight gain")]
+# Categorical
+birth_attendant <- mom_dt[,.(prop = mean(tobacco)), by = birattnd]
+county_pop <- mom_dt[,.(prop = mean(tobacco)), by = cntocpop]
+state <- mom_dt[,.(prop = mean(tobacco)), by = stresfip]
+state <- state[order(stresfip)]
+race <- mom_dt[,.(prop = mean(tobacco)), by = mrace3]
 
-formulas <- paste("mom_dt$", names(mom_dt)[c(6, 9:18, 20, 22, 25:30, 33:41, 43, 45:46, 48)], "~ mom_dt$tobacco")
+category_sum_dt <- rbind(birth_attendant, county_pop, state, race, use.names = FALSE)
+category_sum_dt[, Variable := c("Attendant: M.D.", "Attendant: D.O.", "Attendant: C.N.M.", 
+                                "Attendant: Other Midwife", 
+                            "Attendant: Other", "County: 100k-250k", "County: 250k-500k", "County: 500k-1m", 
+                            "County: 1 million +", "State: Foreign", "State: AZ", "State: CA", 
+                            "State: CO", "State: CT", "State: DE", "State: DC", "State: FL", "State: GA",
+                            "State: IL", "State: IA", "State: KY", "State: ME", "State: MD", "State: MA",
+                            "State: MI", "State: MN", "State: MO", "State: NE", "State: NV", "State: NJ",
+                            "State: NY", "State: NC", "State: ND", "State: OH", "State: OK", "State: PA",
+                            "State: RI", "State: SC", "State: SD", "State: TN", "State: VA",
+                            "State: WA", "State: WV", "State: WY", "Race: White", "Race: Black", "Race: Other")]
+category_sum_dt <- category_sum_dt[, 2:3]
+colnames(category_sum_dt) <- c("Proportion Smoking", "Variable")
+setcolorder(category_sum_dt, c("Variable", "Proportion Smoking"))
+```
+
+```{r, include=TRUE}
+#numeric
+summary_dt <- transpose(mom_dt[,lapply(.SD, mean, na.rm=TRUE), .SDcols = c(2, 6, 9:18, 20, 22, 
+                                                                           25:30, 33:41, 43, 45:46, 48), 
+                               by = tobacco])
+summary_dt <- cbind(summary_dt, transpose(mom_dt[,lapply(.SD, sd, na.rm=TRUE), .SDcols = c(2, 6, 9:18, 20, 22,
+                                                                                           25:30, 33:41, 43, 
+                                                                                           45:46, 48), 
+                                                 by = tobacco]))
+colnames(summary_dt) <- c("Nonsmoker means", "Smoker means", "Nonsmoker sd", "Smoker sd")
+summary_dt <- summary_dt[2:34,]
+summary_dt[, Variable := c("Hospital", "Mother age", "Mother educ", "Marital status", "Prenatal adequacy", 
+                           "Number living child", "Number dead or living child", 
+                           "Total live birth or terminations", "Birth order", "Month prenatal began",
+                           "Number prenatal visits", "Time since last birth", "Father age", "Father educ",
+                           "Gestation", "Child sex", "Birth weight", "Number born", "One min Apgar",
+                           "Five min Apgar", "Anemia", "Cardiac disease", "Lung disease", "Diabetes", 
+                           "Herpes", "Chron. hypertension", "Preg. hypertension", "Previous heavy birth",
+                           "Previous preterm", "Number cigarettes", "Alcohol use", "Number drinks", "Weight gain")]
+
+formulas <- paste("mom_dt$", names(mom_dt)[c(2, 6, 9:18, 20, 22, 25:30, 33:41, 43, 45:46, 48)], "~ mom_dt$tobacco")
 t_test <- t(sapply(formulas, function(f) {      
   res <- t.test(as.formula(f))
   c(res$statistic, p.value=res$p.value)      
@@ -208,16 +263,6 @@ summary_dt[, Difference := `Nonsmoker means` - `Smoker means`]
 setcolorder(summary_dt, c("Variable", "Nonsmoker means", "Nonsmoker sd", "Smoker means", "Smoker sd", "Difference", "t-stat", "p-value"))
 
 ```
-
-```{r, include=TRUE, results = 'asis'}
-
-print(xtable(summary_dt, caption = 'Difference in Means Smoker v Nonsmoker', digits = 2), 
-      include.rownames = FALSE, size = "small", comment = FALSE)
-
-```
-
-
-\newpage
 
 3. The next part of the assignment is to try to estimate the "causal" effect of maternal smoking during pregnancy on infant birth weight. Let's start out using techniques that are familiar, and think about whether they are likely to work in this context. Answer the following questions. 
 
@@ -277,7 +322,7 @@ However, variables that could affect the likelihood of a mother smoking during p
 
 \bigskip
 
-The key assumption underlying a ``selction on observables" design is that the treatment is as good as randomly assigned after we condition on observables. In other words, we assume that we observe *all* the factors that affect treatment assignment (smoking) and are correlated with the potential outcomes (birth weight). If there is systematic selection into treatment, we assume this selection is only a function of the observabless. That is, we assume that maternal smoking is uncorrelated with unobservable determinants of birth weight conditional on the observables. If these assumptions hold, then a regression of maternal smoking on birth weight, conditioning on observables, will estimate the ATE. 
+The key assumption underlying a ``selction on observables" design is that the treatment is as good as randomly assigned after we condition on observables. In other words, we assume that we observe *all* the factors that affect treatment assignment (smoking) and are correlated with the potential outcomes (birth weight). If there is systematic selection into treatment, we assume this selection is only a function of the observables. That is, we assume that maternal smoking is uncorrelated with unobservable determinants of birth weight conditional on the observables. If these assumptions hold, then a regression of maternal smoking on birth weight, conditioning on observables, will estimate the ATE. 
 
 \bigskip
 
@@ -299,13 +344,43 @@ birthweight_i = \alpha_i + \beta Smoking_i + \delta_1 state_i + \delta_2 countyp
 \end{equation}
 ```{r, include = TRUE}
 # Selection on observables model - strict definition of predetermined variables
-lm1 <- lm(dbrwt ~ tobacco + factor(stresfip) + cntocpop + factor(mrace3), mom_dt) 
+lm1 <- lm(dbrwt ~ tobacco + factor(stresfip) + factor(cntocpop) + factor(mrace3), mom_dt) 
 summary(lm1)
 
 # Selection on observables model - relaxed definition of predetermined variables
-lm2 <- lm(dbrwt ~ tobacco + factor(stresfip) + cntocpop + factor(mrace3) + dmage + dmeduc + factor(dmar) + dfage + dfeduc, mom_dt)
+lm2 <- lm(dbrwt ~ tobacco + factor(stresfip) + factor(cntocpop) + factor(mrace3) + dmage + dmeduc + factor(dmar) + dfage + dfeduc, mom_dt)
 
 summary(lm2)
 ```
 
-If our selection on observables assumption holds, we can interpret these results as indicating the causal effect of maternal smoking on birth weight. Specifically, in our estimation of (1), we can interpret our results as ceteris paribus, maternal smoking has an ATE of decreasing birth weight by 246.603 grams (a decrease of `r round((246.603/3306.314)*100,3)` percent from a base of 3306.314 grams - note that the omitted categories are white, foreign residents), which is statistically significant at the 1% level. In our estimation of (2), our results indicate that ceteris paribus, maternal smoking has an ATE of decreasing birth weight by 213.38 grams (a decrease of `r round((213.3799/3148.7055)*100,3)` percent from a base of 3148.71 grams - where the omitted category is white, married, foreign residents), which is also significant at the 1% level. 
+If our selection on observables assumption holds, we can interpret these results as indicating the causal effect of maternal smoking on birth weight. Specifically, in our estimation of (1), we can interpret our results as ceteris paribus, maternal smoking has an ATE of decreasing birth weight by 242.453 grams (a decrease of `r round((242.453/3296.006)*100,3)` percent from a base of 3296.006 grams - note that the omitted categories are white, large county, foreign residents), which is statistically significant at the 1% level. In our estimation of (2), our results indicate that ceteris paribus, maternal smoking has an ATE of decreasing birth weight by 211.545 grams (a decrease of `r round((211.545/3143.3496)*100,3)` percent from a base of 3143.3496 grams - where the omitted category is white, large county, married, foreign residents), which is also significant at the 1% level. 
+
+## Summary Tables: Questions 2b, 2c
+
+```{r, include=TRUE, results = 'asis'}
+
+print(xtable(category_dt, caption = 'Proportion Missing by Group', digits = 2), 
+      include.rownames = FALSE, size = "small", comment = FALSE)
+
+```
+
+```{r, include=TRUE, results = 'asis'}
+
+print(xtable(compare_dt, caption = 'Difference in Means Missing v Nonmissing', digits = 2), 
+      include.rownames = FALSE, size = "small", comment = FALSE)
+
+```
+
+```{r, include=TRUE, results = 'asis'}
+
+print(xtable(category_sum_dt, caption = 'Proportion Smoking by Group', digits = 2), 
+      include.rownames = FALSE, size = "small", comment = FALSE)
+
+```
+
+```{r, include=TRUE, results = 'asis'}
+
+print(xtable(summary_dt, caption = 'Difference in Means Smoker v Nonsmoker', digits = 2), 
+      include.rownames = FALSE, size = "small", comment = FALSE)
+
+```
