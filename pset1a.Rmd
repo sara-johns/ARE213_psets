@@ -26,8 +26,8 @@ library(pacman)
 p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom)
 
 # Directory 
-# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
-base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+# base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
 # base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 
 # read data
@@ -227,7 +227,7 @@ print(mean_diff_birthweight)
 
 (b) Under what circumstances can one identify the average treatment effect of maternal smoking by comparing the unadjusted difference in mean birth weight of infants of smoking and non-smoking mothers? Estimate its impact under this assumption. Provide and comment on some evidence for or against the validity of the assumption. 
 
-We can identify the average treatment effect by comparing the unadjusted difference in means if the treatment (smoking) is randomly assigned. Under this assumption, we would estimate that smoking results in an effect of `r round(mean_diff_birthweight, 3)` grams (? check this) on birth weight. The mean of all birth weights is `r round(mean(mom_dt$dbrwt), 3)` so this represents a decrease of `r round(mean_diff_birthweight / mean(mom_dt$dbrwt), 3)` percent.
+We can identify the average treatment effect by comparing the unadjusted difference in means if the treatment (smoking) is randomly assigned. Under this assumption, we would estimate that smoking results in an effect of `r round(mean_diff_birthweight, 3)` grams on birth weight. The mean of all birth weights is `r round(mean(mom_dt$dbrwt), 3)` so this represents a decrease of `r round(mean_diff_birthweight / mean(mom_dt$dbrwt), 3)*100` percent.
 
 However, based on our table in 2c, random assignment is likely not a valid assumption. Smokers and non smokers are different on many dimensions, some of which may affect birth weight. For example, smokers started prenatal care later and had fewer prenatal visits. 
 
