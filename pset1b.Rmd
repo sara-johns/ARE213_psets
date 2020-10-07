@@ -71,6 +71,10 @@ mom_dt$wgain <- replace(mom_dt$wgain, which(mom_dt$wgain == 99, arr.ind = TRUE),
 
 mom_dt <- na.omit(mom_dt)
 
+setDT(mom_dt)
+# Recode tobacco
+mom_dt[, tobacco := ifelse(tobacco==2, 0, 1)]
+
 # We are left with 114,610 observations after cleaning, as expected from the problem set instructions
 ```
 
@@ -98,3 +102,63 @@ Try a few ways to estimate the effects of maternal smoking on birthweight:
 ## 2a
 
 a) First create the propensity score. For our purposes let's use a logit specification. First specify the logit using all of the "predetermined" covariates (don't include interactions). Next, include only those "predetermined" covariates that enter significantly in the first logit specification. How comparable are the propensity scores? If they are similar does this imply that we have the "correct" set of covariates in the logit specification used for our propensity score?
+
+```{r}
+
+# get prop score using all predetermined variables
+prop_all <- glm(tobacco ~ factor(stresfip) + dmage + factor(mrace3) + dmeduc + 
+                  dtotord + disllb + dfage + factor(birmon) + factor(orfath) + 
+                  factor(dmar) + dfeduc + dplural + factor(pre4000) + factor(preterm),
+                family=binomial(link='logit'), data = mom_dt)
+mom_dt[, prop_score_all := fitted(prop_all)]
+
+# take a look at the output to see which are significant - omitting because takes up a lot of space
+# summary(prop_all)
+# only need to take out state of residence. birth month has a few months that are significant so will keep
+
+# get prop score using significant variables from previous logit
+prop_sig <- glm(tobacco ~ dmage + factor(mrace3) + dmeduc + 
+                  dtotord + disllb + dfage + factor(birmon) + factor(orfath) + 
+                  factor(dmar) + dfeduc + dplural + factor(pre4000) + factor(preterm),
+                family=binomial(link='logit'), data = mom_dt)
+mom_dt[, prop_score_sig := fitted(prop_sig)]
+
+# how different are the prop scores?
+prop_score_diff <- mom_dt$prop_score_all - mom_dt$prop_score_sig
+summary(prop_score_diff)
+# a few outliers but not very different
+
+```
+
+
+## 2b
+
+Control directly for the estimated propensity scores using a regression analysis, and estimate an average treatment effect. State clearly the assumptions under which your estimate is correct.
+
+```{r}
+
+# run regression with prop_score
+prop_reg <- lm(dbrwt ~ tobacco + prop_score_sig, data = mom_dt)
+
+```
+
+Controlling directly for the propensity score, we get the ATE is `r round(prop_reg$coefficients[[2]], 2)` and is statistically significant at the 99.9\% level. 
+
+## 2c
+
+```{r}
+
+# create propensity weights
+mom_dt[,prop_weights := ifelse(tobacco == 1, 
+                          1/prop_score_sig, 
+                          1/(1 - prop_score_sig))] 
+# normalize the weights
+mom_dt[,norm_prop_weights := ifelse(tobacco == 1, 
+                               prop_weights/sum(mom_dt[tobacco == 1, prop_weights]),
+                               prop_weights/sum(mom_dt[tobacco == 0, prop_weights]))] 
+# estimate tau
+tau_ipw <- sum((mom_dt$tobacco*mom_dt$dbrwt)*(mom_dt$norm_prop_weights) - ((1 - mom_dt$tobacco)*mom_dt$dbrwt)*(mom_dt$norm_prop_weights))
+
+```
+
+Using inverse propensity score weighting, we get that the ATE is now `r round(tau_ipw, 2)`.
