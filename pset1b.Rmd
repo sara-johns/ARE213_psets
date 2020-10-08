@@ -156,9 +156,91 @@ mom_dt[,prop_weights := ifelse(tobacco == 1,
 mom_dt[,norm_prop_weights := ifelse(tobacco == 1, 
                                prop_weights/sum(mom_dt[tobacco == 1, prop_weights]),
                                prop_weights/sum(mom_dt[tobacco == 0, prop_weights]))] 
-# estimate tau
+# estimate ATE
 tau_ipw <- sum((mom_dt$tobacco*mom_dt$dbrwt)*(mom_dt$norm_prop_weights) - ((1 - mom_dt$tobacco)*mom_dt$dbrwt)*(mom_dt$norm_prop_weights))
+
+# estimate TOT - use formula from section 
+tot_y1 <- sum(mom_dt$tobacco*mom_dt$dbrwt) / sum(mom_dt$tobacco) 
+tot_y0 <- sum(mom_dt$prop_score_sig * (1 - mom_dt$tobacco) * mom_dt$dbrwt / 
+        (1 - mom_dt$prop_score_sig)) /
+  sum(mom_dt$prop_score_sig * (1 - mom_dt$tobacco) / 
+        (1 - mom_dt$prop_score_sig))
+
+tau_tot <- tot_y1 - tot_y0
+```
+
+Using inverse propensity score weighting, we get that the ATE is now `r round(tau_ipw, 2)` and the TOT is `r round(tau_tot, 2)`.
+
+## 2d
+
+Estimate the counterfactual densities relevant for the above part with a kernel density estimator. That is, estimate the density of birthweight (or log birthweight) if everyone smoked and again if no one smoked. Hint: Consider directly applying the Hirano, Imbens, and Ridder propensity score reweighting scheme in the context of estimating the densities of the treated and control groups (rather than the means of the treated and control groups). Stata has very useful preprogrammed commands. In addition to using the preprogrammed Stata command to compute/graph the kernel density over the entire range of birthweight, please also calculate by hand the kernel estimator at birthweight equals 3,000 grams (and provide the code you wrote that shows the calculation of the kernel estimator at this single point). Play around with a bandwidth starting with half the default Stata bandwidth. Choose the same bandwidth for all the pictures, and produce a (beautiful, production quality) figure depicting both densities.
+
+```{r}
+
+d0 <- density(mom_dt[tobacco==0,dbrwt], kernel="gaussian", bw="sj", 
+              adjust=1, weights=mom_dt[tobacco==0,norm_prop_weights])
+d1 <- density(mom_dt[tobacco==1,dbrwt], kernel="gaussian", bw="sj",
+              adjust=1, weights=mom_dt[tobacco==1,norm_prop_weights])
+
+plot(d0, col="blue", main="Counterfactual Densities", 
+     xlab = "Birthweight (g)")
+lines(d1, col="red")
+legend(1, 0.0008, legend=c("Non-smoker", "Smoker"), 
+       col=c("blue","red"), lty=1, cex=0.8)
 
 ```
 
-Using inverse propensity score weighting, we get that the ATE is now `r round(tau_ipw, 2)`.
+As we expect from our estimates of the ATE, the density of the birthweights for the treated group is shifted to the left of the control group (lower birthweights). 
+
+```{r}
+
+d_all <- density(mom_dt$dbrwt, kernel="gaussian", bw="sj", adjust=1)
+plot(d_all, col="black", main="Kernel Density, Full range of birthweights", 
+     xlab = "Birthweight (g)")
+
+# kernel estimator at 3000 g
+# use bandwidth selected above: h = 49
+h <- 49
+ke_3000 <- 1 / (nrow(mom_dt) * h * sqrt(2*pi)) * sum(exp(-0.5 * (((3000-mom_dt$dbrwt)/h)^2 )))
+
+```
+
+We plot the kernel density over the entire range of birthweights, using the Gaussian kernel and selecting the bandwidth using the methods of Sheather & Jones (1991) which uses pilot estimation of derivatives. For the entire range of birthweights, this gives us a bandwidth of 49. We then calculate the kernel estimator by hand at a weight of 3000 grams using the Gaussian kernel and this bandwidth. Our formula is 
+
+$$ \hat{f}(x) = \frac{1}{nh} \frac{1}{\sqrt{2 \pi}} \sum\limits_i^n e^{-1/2 (\frac{x - x_i}{h})^2} $$
+
+where $x = 3000$ and $h=49$. We get that the density at 3000g is `r round(ke_3000, 5)`, which visually corresponds to our plot of the density.
+
+## 2e
+
+Take one of your densities and display an estimate of the density using different bandwidths as well as the one you settled on. What happens with bigger (smaller) bandwidths?
+
+```{r}
+
+# bw of treated group is 68.9, what if we used 49.8 like control?
+d1_low <- density(mom_dt[tobacco==1,dbrwt], kernel="gaussian", bw=49.8, adjust=1, weights=mom_dt[tobacco==1,norm_prop_weights])
+plot(d1_low, col="black", main="Kernel Density, Smoker: Lower Bandwidth", 
+     xlab = "Birthweight (g)")
+# what if we raised it?
+d1_high <- density(mom_dt[tobacco==1,dbrwt], kernel="gaussian", bw=200, adjust=1, weights=mom_dt[tobacco==1,norm_prop_weights])
+plot(d1_high, col="black", main="Kernel Density, Smoker: Higher Bandwidth", 
+     xlab = "Birthweight (g)")
+# what if we made it very low
+d1_verylow <- density(mom_dt[tobacco==1,dbrwt], kernel="gaussian", bw=20, adjust=1, weights=mom_dt[tobacco==1,norm_prop_weights])
+plot(d1_verylow, col="black", main="Kernel Density, Smoker: Very Low Bandwidth", 
+     xlab = "Birthweight (g)")
+
+```
+
+## 2f 
+
+What are the benefits of the weighting approach (from part c)? What are the potential drawbacks? Pay particular attention to to the issue of people with extremely high and extremely low values of the propensity score.
+
+## 2g
+
+Present your findings and interpret the results on the relationship between birthweight and smoking. For the estimates in parts (b) and (c), consider which of the following conditions must hold in order for that estimate to be valid:
+i. The treatment effect heterogeneity is linear in the propensity score.
+ii. The treatment effect heterogeneity is not linear in the propensity score.
+iii. The decision to smoke is completely randomly assigned.
+iv. Conditional on the exogenous variables the decision to smoke is randomly
+assigned.
