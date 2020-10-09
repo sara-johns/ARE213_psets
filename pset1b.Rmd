@@ -94,17 +94,23 @@ Even if our assumption of "selection on observables" holds, our estimates from P
 
 \bigskip
 
-In our series estimator, we include higher order terms of mother's and father's age and education, to allow for a more flexible functional form. We also include interaction terms between mother's race and mother's age and splines for mother's age with knots at 18 and 35 (because pregnant women under the age of 18 or above the age of 35 may have higher health risks with pregnancy) and splines for mother's education with a knot at 12, that is we allow for a differential relationship depending on whether the mother is a highschool dropout or not.   Specifically, we estimate the model: 
+Recall from Pset1a that our list of predtermined variables, which for convenience we'll call $X$, were state of residence, age of mother, hispanic origin of mother, race of mother, educ of mother, total birth order, interval since last live birth, age of father, hispanic origin of father, month of birth, plurality, previous infant 4000 or more grams, previous preterm infant, prior birth, marital status of mother, and educ of father.
+
+\bigskip
+
+In our series estimator to allow for a more flexible functional form, in addition to $X$ above, we also include higher order terms of mother's and father's age and education. We also include interaction terms between mother's race and mother's age and splines for mother's age with knots at 18 and 35 (because pregnant women under the age of 18 or above the age of 35 may have higher health risks with pregnancy) and splines for mother's education with a knot at 12, that is we allow for a differential relationship depending on whether the mother is a highschool dropout or not. Specifically, we estimate the model: 
 
 \begin{equation*}
 \begin{gathered}
-birthweight_i = \alpha_i + \beta smoking_i + \delta_1 state_i + \delta_2 countypop_i + \delta_3 mother\_race_i + \delta_4 mother\_age_i + \delta_5 mother\_age_i^2 + \\
-\delta_6 mother\_age_i^3 + \delta_7 mother\_educ_i + \delta_8 mother\_educ_i^2 + 
-\delta_9 mother\_educ_i^3 + \delta_{10} marital\_status_i + \delta_{11} father\_age_i + \\
-\delta_{12} father\_age_i^2 + \delta_{13} father\_age_i^3 + \delta_{14} father\_educ_i + \delta_{15} father\_educ_i^2 + \delta_{16} father\_educ_i^3 + \\ \delta_{17} mother\_race_iXmother\_age_i + \delta_{18} mother\_race_iXmother\_age_i^2 + \delta_{19} I (mother\_age_i > 18) (mother\_age_i - 18)^3 + \\ \delta_{20} I (mother\_age_i > 35) (mother\_age_i - 35)^3 +
-\delta_{21} I (mother\_educ_i >= 12) (mother\_educ_i - 12)^3 + \epsilon_i
+birthweight_i = \alpha_i + \beta smoking_i + \sum_{j = 1}^J \delta_j X_{ji} +  \gamma_1 mother\_age_i^2 + \gamma_2 mother\_age_i^3 + \gamma_3 mother\_educ_i^2 + \gamma_4 mother\_educ_i^3 + \\
+\gamma_{5} father\_age_i^2 + \gamma_{6} father\_age_i^3 + \gamma_{7} father\_educ_i^2 + \gamma_{8} father\_educ_i^3 + \gamma_{9} mother\_race_iXmother\_age_i + \\
+\gamma_{10} mother\_race_iXmother\_age_i^2 + \gamma_{11} I (mother\_age_i > 18) (mother\_age_i - 18)^3 + \\
+\gamma_{12} I (mother\_age_i > 35) (mother\_age_i - 35)^3 + 
+\gamma_{13} I (mother\_educ_i >= 12) (mother\_educ_i - 12)^3 + \epsilon_i
 \end{gathered}
 \end{equation*}
+
+Where $X_j = (X_1, ... X_J)$ represents the J pre-determined variables listed above. 
 
 ```{r, include = TRUE}
 # Generate higher order terms
@@ -122,7 +128,7 @@ mom_dt[dmeduc >= 12, dmeduc_hs := (dmeduc-12)^3]
 mom_dt[dmeduc < 12, dmeduc_hs := 0]
 #View(mom_dt[,.(dmeduc, dmeduc_dropout, dmeduc_hs)])
 
-lm1 <- lm(dbrwt ~ tobacco + factor(stresfip) + factor(cntocpop) + factor(mrace3) + dmage + dmage2 + dmage3 + dmeduc + dmeduc2 + dmeduc3 + factor(dmar) + dfage + dfage2 + dfage3 + dfeduc + dfeduc2 + dfeduc3 + factor(mrace3)*dmage + factor(mrace3)*dmage2 + dmage_adult + dmage_ger + dmeduc_hs, mom_dt)
+lm1 <- lm(dbrwt ~ tobacco + factor(stresfip) + factor(mrace3) + factor(birmon) + factor(orfath) + factor(ormoth) + factor(pre4000) + factor(preterm) + factor(dmar) + dtotord + disllb + dplural + dmage + dmage2 + dmage3 + dmeduc + dmeduc2 + dmeduc3 + dfage + dfage2 + dfage3 + dfeduc + dfeduc2 + dfeduc3 + factor(mrace3)*dmage + factor(mrace3)*dmage2 + dmage_adult + dmage_ger + dmeduc_hs, mom_dt)
 
 summary(lm1)
 ```
@@ -135,28 +141,17 @@ A benefit to this approach is that it is straightforward and relatively easy to 
 
 \bigskip
 
-We follow the procedure suggested by Belloni, Chernozhukov, and Hansen by first applying the LASSO to the equation 
+We follow the procedure suggested by Belloni, Chernozhukov, and Hansen by first applying the LASSO to the equation in part (b). We also apply the LASSO to the model regressing treatment status on the remaining covariates: 
+
 \begin{equation*}
 \begin{gathered}
-birthweight_i = \alpha_i + \beta smoking_i + \delta_1 state_i + \delta_2 countypop_i + \delta_3 mother\_race_i + \delta_4 mother\_age_i + \delta_5 mother\_age_i^2 + \\
-\delta_6 mother\_age_i^3 + \delta_7 mother\_educ_i + \delta_8 mother\_educ_i^2 + \delta_9 mother\_educ_i^3 + \delta_{10} marital\_status_i + \delta_{11} father\_age_i + \\
-\delta_{12} father\_age_i^2 + \delta_{13} father\_age_i^3 \delta_{14} father\_educ_i + \delta_{15} father\_educ_i^2 + \delta_{16} father\_educ_i^3 + \delta_{17} mother\_race_{i}Xmother\_age_i + \\
-\delta_{18} mother\_race_{i}Xmother\_age_i^2 + \delta_{19} I (mother\_age_i > 18) (mother\_age_i - 18)^3 + \\
-\delta_{20} I(mother\_age_i > 35) (mother\_age_i - 35)^3 + \delta_{21} I (mother\_educ_i >= 12) (mother\_educ_i - 12)^3 + \epsilon_i
+smoking_i = \pi_0 + \sum_{j = 1}^J \pi_j X_{ji} + \nu_1 mother\_age_i^2 + \nu_2 mother\_age_i^3 + \nu_3 mother\_educ_i^2 + \nu_4 mother\_educ_i^3 + \\
+\nu_{5} father\_age_i^2 + \nu_{6} father\_age_i^3 + \nu_{7} father\_educ_i^2 + \nu_{8} father\_educ_i^3 + \nu_{9} mother\_race_iXmother\_age_i + \\
+\nu_{10} mother\_race_iXmother\_age_i^2 + \nu_{11} I (mother\_age_i > 18) (mother\_age_i - 18)^3 + \\
+\nu_{12} I (mother\_age_i > 35) (mother\_age_i - 35)^3 + 
+\nu_{13} I (mother\_educ_i >= 12) (mother\_educ_i - 12)^3 + \epsilon_i
 \end{gathered}
 \end{equation*}
-
-We then apply the LASSO to the equation 
-\begin{equation*}
-\begin{gathered}
-smoking_i = \gamma_{0} + \gamma_{1} state_{i} + \gamma_2 countypop_i + \gamma_3 mother\_race_i + \gamma_4 mother\_age_i + \gamma_5 mother\_age_i^2 + \\
-\gamma_6 mother\_age_i^3 + \gamma_7 mother\_educ_i + \gamma_8 mother\_educ_i^2 + \gamma_9 mother\_educ_i^3 + \gamma_{10} marital\_status_i + \gamma_{11} father\_age_i + \\
-\gamma_{12} father\_age_i^2 + \gamma_{13} father\_age_i^3 \gamma_{14} father\_educ_i + \gamma_{15} father\_educ_i^2 + \gamma_{16} father\_educ_i^3 + \gamma_{17} mother\_race_iXmother\_age_i + \\
-\gamma_{18} mother\_race_iXmother\_age_i^2 + \gamma_{19} I (mother\_age_i > 18) (mother\_age_i - 18)^3 + \\ 
-\gamma_{20} I (mother\_age_i > 35) (mother\_age_i - 35)^3 + \gamma_{21} I (mother\_educ_i >= 12) (mother\_educ_i - 12)^3 + \epsilon_i
-\end{gathered}
-\end{equation*}
-
 Then we regress $birthweight_i$ on $smoking_i$ and all of the covariates selected by LASSO in either equation 1 or 2 above. In each case, we cross-validate the LASSO and choose the value of lambda such that the mean cross-validated error is within 1 standard error of the minimum. 
 
 ```{r, include = TRUE}
@@ -165,35 +160,59 @@ mom_dt[,stresfip := as.factor(stresfip)]
 mom_dt[,cntocpop := as.factor(cntocpop)]
 mom_dt[,mrace3 := as.factor(mrace3)]
 mom_dt[,dmar := as.factor(dmar)]
+mom_dt[,birmon := as.factor(birmon)]
+mom_dt[,orfath := as.factor(orfath)]
+mom_dt[,ormoth := as.factor(ormoth)]
+mom_dt[,pre4000 := as.factor(pre4000)]
+mom_dt[,preterm := as.factor(preterm)]
 
 #Lasso for lm1
 x1 <- model.matrix(lm1, data = mom_dt) #create X matrix
 lasso_y <- cv.glmnet(x1, mom_dt$dbrwt, family = "gaussian", standardize = TRUE, intercept = TRUE, alpha = 1, type = "mse")
 plot(lasso_y)
-lasso_y$glmnet.fit
+#lasso_y$glmnet.fit
 coef(lasso_y, s = "lambda.1se") #Coefficients from lasso for lambda that gets error within 1 se of the minimum
 
-#Lasso for lm2
-lm2 <- lm(tobacco ~ factor(stresfip) + factor(cntocpop) + factor(mrace3) + dmage + dmage2 + dmage3 + dmeduc + dmeduc2 + dmeduc3 + factor(dmar) + dfage + dfage2 + dfage3 + dfeduc + dfeduc2 + dfeduc3 + factor(mrace3)*dmage + factor(mrace3)*dmage2 + dmage_adult + dmage_ger + dmeduc_hs, mom_dt) #Model treatment status as a function of the other control variables
+#Lasso for model of treatment status as a function of the other control variables
+lm2 <- lm(tobacco ~ factor(stresfip) + factor(mrace3) + factor(birmon) + factor(orfath) + factor(ormoth) + factor(pre4000) + factor(preterm) + factor(dmar) + dtotord + disllb + dplural + dmage + dmage2 + dmage3 + dmeduc + dmeduc2 + dmeduc3 + dfage + dfage2 + dfage3 + dfeduc + dfeduc2 + dfeduc3 + factor(mrace3)*dmage + factor(mrace3)*dmage2 + dmage_adult + dmage_ger + dmeduc_hs, mom_dt) 
 
 x2 <- model.matrix(lm2, data = mom_dt) #create X matrix
 lasso_d <- cv.glmnet(x2, mom_dt$dbrwt, family = "gaussian", standardize = TRUE, intercept = TRUE, alpha = 1, type = "mse")
 plot(lasso_d)
-lasso_d$glmnet.fit
+#lasso_d$glmnet.fit
 coef(lasso_d, s = "lambda.1se") #Coefficients from lasso for lambda that gets error within 1 se of the minimum
 
 ```
 
-Based on these results, we choose to keep the following covariates: an intercept, tobacco, both levels of mother's race, mother's age, mother's education, marital status, and the square of father's education. Thus, we drop a significant number of covariates that we had initially thought would be necessary to include, such as state of residence, county population, higher order terms of mother's age and education, most of the terms for father's age and education other than the square of father's education, and all of our spline and interaction terms. After our LASSO procedure, our final model is: 
+Based on these results, we choose to keep the following covariates: an intercept, tobacco, both levels of mother's race, a dummy for whether the mother is Puerto Rican, a dummy for whether the mother is Hispanic "other", previous infant 4000 grams or more, previous preterm infant, marital status, interval since last live birth, plurality, mother's education and the square of mother's education, father's education and the square of father's education, a spline for mother's age with a knot at 35, and the interaction term between whether the mother is black by mother's age. 
 
-\begin{align*}
-birthweight_i = \alpha_i + \beta Smoking_i + \delta_1 mother\_race_i + \delta_2 mother\_age_i + \delta_3 mother\_educ_i + \\ 
-\delta_{4} marital\_status_i + \delta_{5} father\_educ_i^2 + \epsilon_i
-\end{align*}
+\bigskip
+
+We drop a significant number of covariates that we had initially thought would be necessary to include, such as state of residence, birth month, hispanic origin of father, the cube of mother's and father's education, father's age and its higher order terms, mother's age and its higher order terms, and most of the spline and interaction terms. 
+
+\bigskip
+
+After our LASSO procedure, our final model is: 
+
+\begin{equation*}
+\begin{gathered}
+birthweight_i = \alpha_i + \beta Smoking_i + \delta_1 mother\_race_i + \delta_2 mother_hispanic_i == 2 + \delta_3 mother_hispanic_i == 5 + \delta_4 pre4000_i + \\
+\delta_5 preterm_i + \delta_6 marital\_status_i + \delta_7 last\_birth_i + \delta_8 plurality_i + \delta_9 mother\_educ_i + \delta_{10}mother\_educ_i^2 + 
+\delta_{11}father\_educ_i + \\
+\delta_{12}father\_educ_i^2 + \delta_{13} I (mother\_age_i > 35) (mother\_age_i - 35)^3 + \delta_{14} mother\_race_i == 3 X mother\_age_i + \epsilon_i
+\end{gathered}
+\end{equation*}
 
 ```{r, include = TRUE}
+#Create necessary dummy and interaction terms
+mom_dt[, ormoth2 := ifelse(ormoth == 2, 1, 0)]
+mom_dt[,ormoth2 := as.factor(ormoth2)]
+mom_dt[,ormoth5 := ifelse(ormoth == 5, 1, 0)]
+mom_dt[,ormoth5 := as.factor(ormoth5)]
+mom_dt[,mrace3Xdmage := ifelse(mrace3 == 3, 3*dmage, 0)]
+
 #New model with covariates chosen from 2-stage Lasso above
-lm3 <- lm(dbrwt ~ tobacco + factor(mrace3) + dmage + dmeduc + factor(dmar) + dfeduc2, mom_dt)
+lm3 <- lm(dbrwt ~ tobacco + factor(mrace3) + factor(ormoth2) + factor(ormoth5) + factor(pre4000) + factor(preterm) + factor(dmar) + disllb + dplural + dmeduc + dmeduc2 + dfeduc + dfeduc2 + dmage_ger + mrace3Xdmage, mom_dt)
 summary(lm3)
 ```
 # Question 2
@@ -202,7 +221,7 @@ Describe the propensity score approach to the problem of estimating the average 
 
 \medskip
 
-We know that if we condition on observables, we will get a consistent estimate of the ATE under the assumption. However, if the observables are high dimensional, it might be difficult to find a comparison unit with the same values of the observables. From lecture, we know that it is sufficient instead to condition on the propensity score. Using the propensity score allows us to compare treated and control units with the same probability of being treated. The propensity score does not require that all values of the observables be the same and so therefore avoids problems of multidimensionality.
+We know that if we condition on observables, we will get a consistent estimate of the ATE under the selection on observables assumption. However, if the observables are high dimensional, it might be difficult to find a comparison unit with the same values of the observables. From lecture, we know that it is sufficient instead to condition on the propensity score. Using the propensity score allows us to compare treated and control units with the same probability of being treated, controlling for any differences that are consistently related to the probability of treatment. The propensity score does not require that all values of the observables be the same and so avoids problems of multidimensionality.
 
 \bigskip
 
@@ -216,7 +235,7 @@ a) First create the propensity score. For our purposes let's use a logit specifi
 
 # get prop score using all predetermined variables
 prop_all <- glm(tobacco ~ factor(stresfip) + dmage + factor(mrace3) + dmeduc + 
-                  dtotord + disllb + dfage + factor(birmon) + factor(orfath) + 
+                  dtotord + disllb + dfage + factor(birmon) + factor(orfath) + factor(ormoth) +
                   factor(dmar) + dfeduc + dplural + factor(pre4000) + factor(preterm),
                 family=binomial(link='logit'), data = mom_dt)
 mom_dt[, prop_score_all := fitted(prop_all)]
@@ -227,7 +246,7 @@ mom_dt[, prop_score_all := fitted(prop_all)]
 
 # get prop score using significant variables from previous logit
 prop_sig <- glm(tobacco ~ dmage + factor(mrace3) + dmeduc + 
-                  dtotord + disllb + dfage + factor(birmon) + factor(orfath) + 
+                  dtotord + disllb + dfage + factor(birmon) + factor(orfath) + factor(ormoth) +
                   factor(dmar) + dfeduc + dplural + factor(pre4000) + factor(preterm),
                 family=binomial(link='logit'), data = mom_dt)
 mom_dt[, prop_score_sig := fitted(prop_sig)]
