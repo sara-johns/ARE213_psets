@@ -239,6 +239,7 @@ summary(prop_score_diff)
 
 ```
 
+In the first logit, we include state of residence, mother's age, mother's race, mother's education, birth order, interval since last birth, father's age, father's Hispanic origin, father's education, birth month, plurality, previous heavy child, and previous preterm. This is a combination of the "predetermined" variables we selected and discussed in the last problem set and the ones discussed in the problem set solutions. We find that all coefficients are significant, except for state of residence. We remove that from the next regression and the propensity scores, which are the fitted values of the logit, do not change very much. This does not guarantee we are estimating the logit with the correct set of covariates. There could be important covariates that we do not have in this dataset that we would want to use in the logit specification. The fact that our propensity scores do not change much between the two specifications just gives us confidence that state of residence was not an important regressor to include. Moving forward, we will use the propensity scores from the second specification.
 
 ## 2b
 
@@ -251,7 +252,7 @@ prop_reg <- lm(dbrwt ~ tobacco + prop_score_sig, data = mom_dt)
 
 ```
 
-Controlling directly for the propensity score, we get the ATE is `r round(prop_reg$coefficients[[2]], 2)` and is statistically significant at the 99.9\% level. 
+Controlling directly for the propensity score, we get the ATE is `r round(prop_reg$coefficients[[2]], 2)` and is statistically significant at the 99.9\% level. The assumption under which this estimate is consistent is unconfoundedness and homogeneous treatment effects. If we instead believed that there were heterogeneous treatment effects (that varied with $X$), then we would instead want to also interact the propensity score with the treatment status (though this is not all that helpful). 
 
 ## 2c
 
@@ -266,7 +267,8 @@ mom_dt[,norm_prop_weights := ifelse(tobacco == 1,
                                prop_weights/sum(mom_dt[tobacco == 1, prop_weights]),
                                prop_weights/sum(mom_dt[tobacco == 0, prop_weights]))] 
 # estimate ATE
-tau_ipw <- sum((mom_dt$tobacco*mom_dt$dbrwt)*(mom_dt$norm_prop_weights) - ((1 - mom_dt$tobacco)*mom_dt$dbrwt)*(mom_dt$norm_prop_weights))
+tau_ipw <- sum((mom_dt$tobacco*mom_dt$dbrwt)*(mom_dt$norm_prop_weights) - 
+                 ((1 - mom_dt$tobacco)*mom_dt$dbrwt)*(mom_dt$norm_prop_weights))
 
 # estimate TOT - use formula from section 
 tot_y1 <- sum(mom_dt$tobacco*mom_dt$dbrwt) / sum(mom_dt$tobacco) 
@@ -278,7 +280,15 @@ tot_y0 <- sum(mom_dt$prop_score_sig * (1 - mom_dt$tobacco) * mom_dt$dbrwt /
 tau_tot <- tot_y1 - tot_y0
 ```
 
-Using inverse propensity score weighting, we get that the ATE is now `r round(tau_ipw, 2)` and the TOT is `r round(tau_tot, 2)`.
+We have from lecture that the ATE using inverse propensity weighting is 
+
+$$ \hat{\tau}_{ATE} = (\sum^N \frac{D_iY_i}{\hat{p}(X_i)} / \sum^N \frac{D_i}{\hat{p}(X_i)}) - (\sum^N \frac{(1-D_i)Y_i}{1-\hat{p}(X_i)} / \sum^N \frac{1-D_i}{1-\hat{p}(X_i)}) $$ 
+
+and using this formula, we get that the ATE is `r round(tau_ipw, 2)`. We have from section that the TOT using inverse propensity weighting is 
+
+$$ \hat{\tau}_{TOT} = (\sum^N D_iY_i / \sum^N D_i - (\sum^N \frac{\hat{p}(X_i)(1-D_i)Y_i}{1-\hat{p}(X_i)} / \sum^N \frac{\hat{p}(X_i)(1-D_i)}{1-\hat{p}(X_i)})  $$
+
+and using this formula, we get that the TOT is `r round(tau_tot, 2)`.
 
 ## 2d
 
@@ -299,7 +309,7 @@ legend(1, 0.0008, legend=c("Non-smoker", "Smoker"),
 
 ```
 
-As we expect from our estimates of the ATE, the density of the birthweights for the treated group is shifted to the left of the control group (lower birthweights). 
+In order to get the counterfactual densities, we weight the treated and control groups by the normalized inverse propensity scores, similar to our calculation above. We use the density() function with a Gaussian kernel and a bandwidth using the methods of Sheather & Jones (1991) which uses pilot estimation of derivatives. This results in a bandwidth of `r round(d0$bw, 2)` for the control and a bandwidth of `r round(d1$bw, 2)` for the treated. As we expect from our estimates of the ATE, the density of the birthweights for the treated group is shifted to the left of the control group (lower birthweights). 
 
 ```{r}
 
@@ -309,41 +319,54 @@ plot(d_all, col="black", main="Kernel Density, Full range of birthweights",
 
 # kernel estimator at 3000 g
 # use bandwidth selected above: h = 49
-h <- 49
+h <- d_all$bw
 ke_3000 <- 1 / (nrow(mom_dt) * h * sqrt(2*pi)) * sum(exp(-0.5 * (((3000-mom_dt$dbrwt)/h)^2 )))
 
 ```
 
-We plot the kernel density over the entire range of birthweights, using the Gaussian kernel and selecting the bandwidth using the methods of Sheather & Jones (1991) which uses pilot estimation of derivatives. For the entire range of birthweights, this gives us a bandwidth of 49. We then calculate the kernel estimator by hand at a weight of 3000 grams using the Gaussian kernel and this bandwidth. Our formula is 
+We plot the kernel density over the entire range of birthweights, using the Gaussian kernel and selecting the bandwidth using the methods of Sheather & Jones (1991) which uses pilot estimation of derivatives. For the entire range of birthweights, this gives us a bandwidth of `r round(d_all$bw, 2)`. We then calculate the kernel estimator by hand at a weight of 3000 grams using the Gaussian kernel and this bandwidth. Our formula is 
 
 $$ \hat{f}(x) = \frac{1}{nh} \frac{1}{\sqrt{2 \pi}} \sum\limits_i^n e^{-1/2 (\frac{x - x_i}{h})^2} $$
 
-where $x = 3000$ and $h=49$. We get that the density at 3000g is `r round(ke_3000, 5)`, which visually corresponds to our plot of the density.
+where $x = 3000$ , $n=$ `r nrow(mom_dt)`, and $h=$ `r round(d_all$bw, 2)`. We get that the density at 3000g is `r round(ke_3000, 5)`, which visually corresponds to our plot of the density.
 
 ## 2e
 
 Take one of your densities and display an estimate of the density using different bandwidths as well as the one you settled on. What happens with bigger (smaller) bandwidths?
 
 ```{r}
-
+# plot bandwidth selected
+plot(d1, col="black", main="Kernel Density, Smoker: Selected Bandwidth", 
+     xlab = "Birthweight (g)")
 # bw of treated group is 68.9, what if we used 49.8 like control?
-d1_low <- density(mom_dt[tobacco==1,dbrwt], kernel="gaussian", bw=49.8, adjust=1, weights=mom_dt[tobacco==1,norm_prop_weights])
+d1_low <- density(mom_dt[tobacco==1,dbrwt], kernel="gaussian", bw=49.8, adjust=1, 
+                  weights=mom_dt[tobacco==1,norm_prop_weights])
 plot(d1_low, col="black", main="Kernel Density, Smoker: Lower Bandwidth", 
      xlab = "Birthweight (g)")
 # what if we raised it?
-d1_high <- density(mom_dt[tobacco==1,dbrwt], kernel="gaussian", bw=200, adjust=1, weights=mom_dt[tobacco==1,norm_prop_weights])
+d1_high <- density(mom_dt[tobacco==1,dbrwt], kernel="gaussian", bw=200, adjust=1, 
+                   weights=mom_dt[tobacco==1,norm_prop_weights])
 plot(d1_high, col="black", main="Kernel Density, Smoker: Higher Bandwidth", 
      xlab = "Birthweight (g)")
 # what if we made it very low
-d1_verylow <- density(mom_dt[tobacco==1,dbrwt], kernel="gaussian", bw=20, adjust=1, weights=mom_dt[tobacco==1,norm_prop_weights])
+d1_verylow <- density(mom_dt[tobacco==1,dbrwt], kernel="gaussian", bw=20, adjust=1, 
+                      weights=mom_dt[tobacco==1,norm_prop_weights])
 plot(d1_verylow, col="black", main="Kernel Density, Smoker: Very Low Bandwidth", 
      xlab = "Birthweight (g)")
 
 ```
 
+We use the treated group counterfactual density and try a few different bandwidths. First, we plot our selected bandwidth, `r round(d1$bw, 2)`. Next, since the treated group is smaller than the control group, the bandwidth selected had been larger than that of the control group, so we plot the density had we used the same bandwidth as the control, ~ 49.8. Next we crank up the bandwidth to 200 and finally we drop it to 20. The higher the bandwidth, the smoother the density. At a bandwidth of 20, the density becomes a lot choppier. This is what we expect as a lower bandwidth includes fewer points and thus produces less smoothing. 
+
 ## 2f 
 
 What are the benefits of the weighting approach (from part c)? What are the potential drawbacks? Pay particular attention to to the issue of people with extremely high and extremely low values of the propensity score.
+
+\medskip
+
+The benefits of the weighting approach in part c are that we can get a consistent estimate of the ATE and TOT that is also efficient. One potential drawback is that we had to first estimate the propensity score, which we are not certain we estimate correctly. Additionally, there are problems with overlap if the treated and control groups are very different. This could make it so people with extremely high propensity scores are only found in the treated group and people with extremely low propensity scores are only found in the control group. This will cause our weighting methods to still not perform well. However, if this is an issue, we can trim the observations above or below certain propensity scores, as Imbens did in the LaLonde data. 
+
+\bigskip
 
 ## 2g
 
@@ -351,5 +374,8 @@ Present your findings and interpret the results on the relationship between birt
 i. The treatment effect heterogeneity is linear in the propensity score.
 ii. The treatment effect heterogeneity is not linear in the propensity score.
 iii. The decision to smoke is completely randomly assigned.
-iv. Conditional on the exogenous variables the decision to smoke is randomly
-assigned.
+iv. Conditional on the exogenous variables the decision to smoke is randomly assigned.
+
+\medskip
+
+Our findings are included with the relevant sections above. All findings are consistent with one another in finding that smoking causes lower birthweights -- we see this both ATE's estimated and in the counterfactual densities. In part (b), we include the propensity score in a regression. In order for this estimate to be valid, we need assumption i and iv to hold (assumption i would be the case where we interact the propensity score with the treatment, as discussed in part b). In part (c), we again need iv to hold. 
