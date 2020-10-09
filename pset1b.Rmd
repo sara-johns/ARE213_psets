@@ -23,12 +23,12 @@ rm(list = ls())
 
 # Load packages
 library(pacman)
-p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom)
+p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats)
 
 # Directory 
-base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+#base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
 # base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
-# base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
+base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 
 # read data
 mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
@@ -86,7 +86,116 @@ In Problem Set 1a, you used linear regression to relate infant health outcomes a
 
 \bigskip
 
+Even if our assumption of "selection on observables" holds, our estimates from Pset1a may be biased if $E[D|X]$ is not linear in X. That is our estimates from Pset1a impose a linear functional form on the relationship between $Y$ and $X$, or between $E[D|X]$ and $X$, causing our estimates to be biased if the true relationship is not linear. To address the potential misspecification bias, we can instead use a nonparametric method to control for X, or estimate $E[D|X]$ nonparametrically. 
 
+\bigskip
+
+(b) Consider a series estimator. Estimate the smoking effects using a flexible functional form for the control variables (e.g., higher order terms and interactions). What are the benefits and drawbacks to this approach? 
+
+\bigskip
+
+In our series estimator, we include higher order terms of mother's and father's age and education, to allow for a more flexible functional form. We also include interaction terms between mother's race and mother's age and splines for mother's age with knots at 18 and 35 (because pregnant women under the age of 18 or above the age of 35 may have higher health risks with pregnancy) and splines for mother's education with a knot at 12, that is we allow for a differential relationship depending on whether the mother is a highschool dropout or not.   Specifically, we estimate the model: 
+
+\begin{equation*}
+\begin{gathered}
+birthweight_i = \alpha_i + \beta smoking_i + \delta_1 state_i + \delta_2 countypop_i + \delta_3 mother\_race_i + \delta_4 mother\_age_i + \delta_5 mother\_age_i^2 + \\
+\delta_6 mother\_age_i^3 + \delta_7 mother\_educ_i + \delta_8 mother\_educ_i^2 + 
+\delta_9 mother\_educ_i^3 + \delta_{10} marital\_status_i + \delta_{11} father\_age_i + \\
+\delta_{12} father\_age_i^2 + \delta_{13} father\_age_i^3 + \delta_{14} father\_educ_i + \delta_{15} father\_educ_i^2 + \delta_{16} father\_educ_i^3 + \\ \delta_{17} mother\_race_iXmother\_age_i + \delta_{18} mother\_race_iXmother\_age_i^2 + \delta_{19} I (mother\_age_i > 18) (mother\_age_i - 18)^3 + \\ \delta_{20} I (mother\_age_i > 35) (mother\_age_i - 35)^3 +
+\delta_{21} I (mother\_educ_i >= 12) (mother\_educ_i - 12)^3 + \epsilon_i
+\end{gathered}
+\end{equation*}
+
+```{r, include = TRUE}
+# Generate higher order terms
+mom_dt[,c("dmage2", "dmage3", "dfage2", "dfage3", "dmeduc2", "dmeduc3", "dfeduc2", "dfeduc3") := .(dmage^2, dmage^3, dfage^2, dfage^3, dmeduc^2, dmeduc^3, dfeduc^2, dfeduc^3)]
+
+# Generate splines for mother's age above 18 and above 35
+mom_dt[dmage >= 18 , dmage_adult := (dmage - 18)^3]
+mom_dt[dmage < 18, dmage_adult := 0]
+mom_dt[dmage > 35, dmage_ger := (dmage-35)^3]
+mom_dt[dmage <= 35, dmage_ger := 0]
+#View(mom_dt[,.(dmage, dmage_adult, dmage_ger)])
+
+# Generate splines for mother's education highschool graduate or more
+mom_dt[dmeduc >= 12, dmeduc_hs := (dmeduc-12)^3]
+mom_dt[dmeduc < 12, dmeduc_hs := 0]
+#View(mom_dt[,.(dmeduc, dmeduc_dropout, dmeduc_hs)])
+
+lm1 <- lm(dbrwt ~ tobacco + factor(stresfip) + factor(cntocpop) + factor(mrace3) + dmage + dmage2 + dmage3 + dmeduc + dmeduc2 + dmeduc3 + factor(dmar) + dfage + dfage2 + dfage3 + dfeduc + dfeduc2 + dfeduc3 + factor(mrace3)*dmage + factor(mrace3)*dmage2 + dmage_adult + dmage_ger + dmeduc_hs, mom_dt)
+
+summary(lm1)
+```
+
+A benefit to this approach is that it is straightforward and relatively easy to implement and interpret. However, a drawback to this approach is that the choice of which covariates, higher order terms, interaction terms, and knots to include is arbitrary, so our series estimator may not accurately capture the true data generating process and we run the risk of overfitting our model or omitting an important control variable.
+
+\bigskip
+
+(c) Use the LASSO to determine which covariates (and higher order terms) to include in your regression from part (b). Do you end up dropping some covariates that you had thought might be necessary to include? 
+
+\bigskip
+
+We follow the procedure suggested by Belloni, Chernozhukov, and Hansen by first applying the LASSO to the equation 
+\begin{equation*}
+\begin{gathered}
+birthweight_i = \alpha_i + \beta smoking_i + \delta_1 state_i + \delta_2 countypop_i + \delta_3 mother\_race_i + \delta_4 mother\_age_i + \delta_5 mother\_age_i^2 + \\
+\delta_6 mother\_age_i^3 + \delta_7 mother\_educ_i + \delta_8 mother\_educ_i^2 + \delta_9 mother\_educ_i^3 + \delta_{10} marital\_status_i + \delta_{11} father\_age_i + \\
+\delta_{12} father\_age_i^2 + \delta_{13} father\_age_i^3 \delta_{14} father\_educ_i + \delta_{15} father\_educ_i^2 + \delta_{16} father\_educ_i^3 + \delta_{17} mother\_race_{i}Xmother\_age_i + \\
+\delta_{18} mother\_race_{i}Xmother\_age_i^2 + \delta_{19} I (mother\_age_i > 18) (mother\_age_i - 18)^3 + \\
+\delta_{20} I(mother\_age_i > 35) (mother\_age_i - 35)^3 + \delta_{21} I (mother\_educ_i >= 12) (mother\_educ_i - 12)^3 + \epsilon_i
+\end{gathered}
+\end{equation*}
+
+We then apply the LASSO to the equation 
+\begin{equation*}
+\begin{gathered}
+smoking_i = \gamma_{0} + \gamma_{1} state_{i} + \gamma_2 countypop_i + \gamma_3 mother\_race_i + \gamma_4 mother\_age_i + \gamma_5 mother\_age_i^2 + \\
+\gamma_6 mother\_age_i^3 + \gamma_7 mother\_educ_i + \gamma_8 mother\_educ_i^2 + \gamma_9 mother\_educ_i^3 + \gamma_{10} marital\_status_i + \gamma_{11} father\_age_i + \\
+\gamma_{12} father\_age_i^2 + \gamma_{13} father\_age_i^3 \gamma_{14} father\_educ_i + \gamma_{15} father\_educ_i^2 + \gamma_{16} father\_educ_i^3 + \gamma_{17} mother\_race_iXmother\_age_i + \\
+\gamma_{18} mother\_race_iXmother\_age_i^2 + \gamma_{19} I (mother\_age_i > 18) (mother\_age_i - 18)^3 + \\ 
+\gamma_{20} I (mother\_age_i > 35) (mother\_age_i - 35)^3 + \gamma_{21} I (mother\_educ_i >= 12) (mother\_educ_i - 12)^3 + \epsilon_i
+\end{gathered}
+\end{equation*}
+
+Then we regress $birthweight_i$ on $smoking_i$ and all of the covariates selected by LASSO in either equation 1 or 2 above. In each case, we cross-validate the LASSO and choose the value of lambda such that the mean cross-validated error is within 1 standard error of the minimum. 
+
+```{r, include = TRUE}
+#First convert factor variables in dataset to factor variables
+mom_dt[,stresfip := as.factor(stresfip)]
+mom_dt[,cntocpop := as.factor(cntocpop)]
+mom_dt[,mrace3 := as.factor(mrace3)]
+mom_dt[,dmar := as.factor(dmar)]
+
+#Lasso for lm1
+x1 <- model.matrix(lm1, data = mom_dt) #create X matrix
+lasso_y <- cv.glmnet(x1, mom_dt$dbrwt, family = "gaussian", standardize = TRUE, intercept = TRUE, alpha = 1, type = "mse")
+plot(lasso_y)
+lasso_y$glmnet.fit
+coef(lasso_y, s = "lambda.1se") #Coefficients from lasso for lambda that gets error within 1 se of the minimum
+
+#Lasso for lm2
+lm2 <- lm(tobacco ~ factor(stresfip) + factor(cntocpop) + factor(mrace3) + dmage + dmage2 + dmage3 + dmeduc + dmeduc2 + dmeduc3 + factor(dmar) + dfage + dfage2 + dfage3 + dfeduc + dfeduc2 + dfeduc3 + factor(mrace3)*dmage + factor(mrace3)*dmage2 + dmage_adult + dmage_ger + dmeduc_hs, mom_dt) #Model treatment status as a function of the other control variables
+
+x2 <- model.matrix(lm2, data = mom_dt) #create X matrix
+lasso_d <- cv.glmnet(x2, mom_dt$dbrwt, family = "gaussian", standardize = TRUE, intercept = TRUE, alpha = 1, type = "mse")
+plot(lasso_d)
+lasso_d$glmnet.fit
+coef(lasso_d, s = "lambda.1se") #Coefficients from lasso for lambda that gets error within 1 se of the minimum
+
+```
+
+Based on these results, we choose to keep the following covariates: an intercept, tobacco, both levels of mother's race, mother's age, mother's education, marital status, and the square of father's education. Thus, we drop a significant number of covariates that we had initially thought would be necessary to include, such as state of residence, county population, higher order terms of mother's age and education, most of the terms for father's age and education other than the square of father's education, and all of our spline and interaction terms. After our LASSO procedure, our final model is: 
+
+\begin{align*}
+birthweight_i = \alpha_i + \beta Smoking_i + \delta_1 mother\_race_i + \delta_2 mother\_age_i + \delta_3 mother\_educ_i + \\ 
+\delta_{4} marital\_status_i + \delta_{5} father\_educ_i^2 + \epsilon_i
+\end{align*}
+
+```{r, include = TRUE}
+#New model with covariates chosen from 2-stage Lasso above
+lm3 <- lm(dbrwt ~ tobacco + factor(mrace3) + dmage + dmeduc + factor(dmar) + dfeduc2, mom_dt)
+summary(lm3)
+```
 # Question 2
 
 Describe the propensity score approach to the problem of estimating the average causal effect of smoking when the treatment is randomly assigned conditional on the observables. How does it reduce the dimensionality problem of multivariate matching? 
