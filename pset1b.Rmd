@@ -21,9 +21,13 @@ knitr::opts_chunk$set(echo = TRUE)
 # Clear workspace
 rm(list = ls())
 
+# install.packages("tidyverse")
+# install.packages("MatchIt")
+
 # Load packages
 library(pacman)
 library(tidyverse)
+library(MatchIt)
 p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats)
 
 # Directory 
@@ -455,6 +459,7 @@ saturated_data <- mom_dt %>%
   mutate(group = cur_group_id()) %>%
   ungroup()
 
+#the line below is the one that takes forever to run for me
 #reg <- lm(dbrwt ~ tobacco + factor(group), data=saturated_data)
 
 ```
@@ -466,6 +471,11 @@ Add proof
 *Develop a weighted version of the exact matching estimator that estimates the same thing as the regression above (regardless of whether the treatment effect is independent of covariates). 
 
 \bigskip
+```{r}
+# useful documentation on page 9 https://r.iq.harvard.edu/docs/matchit/2.4-20/matchit.pdf
+# right now this is giving me no matched units
+matched <- matchit(tobacco ~ rectype + pldel3 + cntocpop + stresfip + dmage + mrace3 + dmar + adequacy + csex + dplural, data=mom_dt, method="exact")
+```
 
 ## 5d
 
