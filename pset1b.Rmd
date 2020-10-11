@@ -23,13 +23,14 @@ rm(list = ls())
 
 # Load packages
 library(pacman)
+library(tidyverse)
 p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats)
 
 # Directory 
 # base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
-# base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
 # base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
-base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
+# base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
 # read data
 mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
@@ -399,3 +400,93 @@ iv. Conditional on the exogenous variables the decision to smoke is randomly ass
 \medskip
 
 Our findings are included with the relevant sections above. All findings are consistent with one another in finding that smoking causes lower birthweights -- we see this both ATE's estimated and in the counterfactual densities. In part (b), we include the propensity score in a regression. In order for this estimate to be valid, we need assumption i and iv to hold (assumption i would be the case where we interact the propensity score with the treatment, as discussed in part b). In part (c), we again need iv to hold. 
+
+# Question 3
+
+# Question 4
+
+# Question 5
+
+Let's link matching back to regression. Consider the conditional expectation function $E[ \ birthweight \ | \ X]$, where $X$ contains the following variables: \texttt{rectype pldel3 cntocpop stresfip dmage mrace3 dmar adequacy csex dplural}. 
+
+## 5a
+
+Develop a regression that you are confident estimates $E[ \ birthweight \ | \ X]$ as $N \rightarrow \infty$? Why are you confident that your regression gets the CEF right?
+
+A regression of birthweight on a saturated model for the discrete regressors (i.e. for every combination of the variables in $X$ that appears in the data, there is a unique dummy variable) gets the CEF right as $N \rightarrow \infty$, assuming that as $N \rightarrow \infty$ we would add in more dummy variables for any additional new combinations of the variables in $X$ that appear in the data.
+
+We are confident that this regression gets the CEF right because having a saturated model for discrete regressors is a sufficient condition for a linear CEF. Then we can use the Regression-CEF Theorem. More specifically:
+
+From the codebook and data cleaning, we know 
+\begin{itemize}
+\item \texttt{rectype} is record type (resident or nonresident): a discrete variable with values $\in \{1, 2\}$
+\item \texttt{pldel3} is place or facility of birth: a discrete variable with values $\in \{1, 2\}$
+\item \texttt{cntocpop} is population size of county of occurrence: a discrete variable with values $\in \{0, 1, 2, 3\}$
+\item \texttt{stresfip} is state of residence: a discrete variable with values $\in \{0, ..., 55\}$
+\item \texttt{dmage} is age of mother: a discrete variable with values $\in \{12, 13, ..., 49\}$
+\item \texttt{mrace3} is race of mother: a discrete variable with values $\in \{1, 2, 3\}$
+\item \texttt{dmar} is marital status of mother: a discrete variable with values $\in \{1, 2\}$
+\item \texttt{adequacy} is adequacy of care index: a discrete variable with values $\in \{1, 2, 3\}$ 
+\item \texttt{csex} is child sex: a discrete variable with values $\in \{1, 2\}$
+\item \texttt{dplural} is plurality (single, twin, triplet, etc): a discrete variable with values $\in \{1, 2, 3, 4\}$
+\end{itemize}
+
+Since all of the regressors are discrete, we can use a saturated model for discrete regressors. (From the lecture notes: A saturated model is one in which you estimate a separate parameter for each point in the support of $x_i$ (e.g., you have a separate dummy variable for each unique value of the vector $x_i$ in your data set)). This is a sufficient condition for the CEF to be linear. 
+
+By the Regression-CEF Theorem, if the CEF is linear, then the regression of $y_i$ on $x_i$ estimates the CEF. Formally, if $E[y_i|x_i] = x_i\gamma$, then $\gamma = E[x_i'x_i]^{-1}E[x_i'y_i]$ (which is what the regression coefficient converges to).
+
+\bigskip
+
+## 5b
+
+*Now run the regression you propose above, but add the treatment (your binary smoking variable) as the righthand side variable of interest. Prove that if the treatment effect of smoking on birthweight is independent of the covariates in $X$, then exact matching and your regression estimate the same thing. You may assume the conditional indpendence assumption holds given the variables in $X$ listed above. 
+
+\bigskip
+
+```{r}
+# the following code came from Arthur's tip on the Slack channel
+# when I try to run it though, it keeps running continuously
+
+saturated_data <- mom_dt %>%
+  select(dbrwt, tobacco, rectype, pldel3, cntocpop, stresfip, dmage, mrace3, 
+         dmar, adequacy, csex, dplural) %>%
+  group_by(rectype, pldel3, cntocpop, stresfip, dmage, mrace3, dmar, adequacy, 
+           csex, dplural) %>%
+  mutate(group = cur_group_id()) %>%
+  ungroup()
+
+#reg <- lm(dbrwt ~ tobacco + factor(group), data=saturated_data)
+
+```
+
+Add proof
+
+## 5c 
+
+*Develop a weighted version of the exact matching estimator that estimates the same thing as the regression above (regardless of whether the treatment effect is independent of covariates). 
+
+\bigskip
+
+## 5d
+
+*Estimate the weighted matching estimator you propose. Compare it to the regression estimate from part (b). Are they similar?
+
+## 5e
+
+*Is the sample size of your regression the same as the sample size of your matching estimator, or does the regression have more observations? If the regression has more observations, why don't these extra observations influence the treatment effect estimate? 
+
+\bigskip
+The sample size of the regression and the sample size of the matching estimator are not the same. The regression has more observations. This is because for the matching estimator, if a given cell doesn't have both a control and treatment observation, then that cell is dropped because we cannot estimate the treatment effect within that cell. But the regression doesn't drop any observations, it just gives 0 weight to those observations which, in our matching estimator, are in a cell that doesn't have both treatment and control.
+
+
+## 5f
+
+*Compute a standard error for your matching estimator using the formula from Imbens (2015). Specifically, note that your matching estimator should have a form $\frac{1}{N_t}\sum_{d_i=1} w_i y_i - \frac{1}{N_c} \sum_{d_i=0} w_i y_i$, where $\sum_{d_i=1} w_i = N_t$ and $\sum_{d_i=0} w_i = N_c$. Then the conditional variance is approximately $\sum_i (\frac{d_i}{N_t^2} + \frac{1-d_i}{N_c^2})w_i^2 \hat{\sigma}^2_{d_i}(x_i)$, where $\hat{\sigma}^2_{d_i}(x_i) = \frac{1}{2}(y_i - y_{nn(i)})^2$, and $y_{nn(i)}$ is the nearest neighbor to observation $i$ with the \textit{same} treatment status. Figure out the implicit weights $w_i$ in your estimator from part (d), and compute the conditional variance. Is it close to your regression coefficient variance? 
+
+\bigskip
+
+# Question 6
+
+Concisely and coherently summarize your overall results, providing some intuition. Write it like you would the conclusion of a paper. In this summary, describe whether you think your best estimate of the effects of smoking is credibly identified. State why or why not. 
+
+\bigskip
