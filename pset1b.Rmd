@@ -26,9 +26,10 @@ library(pacman)
 p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats)
 
 # Directory 
-base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
 # base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
 # base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
+base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
 # read data
 mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
@@ -271,7 +272,7 @@ prop_reg <- lm(dbrwt ~ tobacco + prop_score_sig, data = mom_dt)
 
 ```
 
-Controlling directly for the propensity score, we get the ATE is `r round(prop_reg$coefficients[[2]], 2)` and is statistically significant at the 99.9\% level. The assumption under which this estimate is consistent is unconfoundedness and homogeneous treatment effects. If we instead believed that there were heterogeneous treatment effects (that varied with $X$), then we would instead want to also interact the propensity score with the treatment status (though this is not all that helpful). 
+Controlling directly for the propensity score, we get the ATE is `r round(prop_reg$coefficients[[2]], 2)` and is statistically significant at the 99.9\% level. The assumption under which this estimate is consistent is unconfoundedness and homogeneous treatment effects. If we instead believed that there were heterogeneous treatment effects (that varied with $X$), then this regression does not provide meaningful results.
 
 ## 2c
 
