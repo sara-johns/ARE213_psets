@@ -32,8 +32,8 @@ p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, g
 
 # Directory 
 # base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
-base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
-# base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
+#base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 # base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
 # read data
@@ -104,7 +104,7 @@ Recall from Pset1a that our list of predtermined variables, which for convenienc
 
 \bigskip
 
-In our series estimator to allow for a more flexible functional form, in addition to $X$ above, we also include higher order terms of mother's and father's age and education. We also include interaction terms between mother's race and mother's age and splines for mother's age with knots at 18 and 35 (because pregnant women under the age of 18 or above the age of 35 may have higher health risks with pregnancy) and splines for mother's education with a knot at 12, that is we allow for a differential relationship depending on whether the mother is a highschool dropout or not. Specifically, we estimate the model: 
+In our series estimator, in addition to $X$ above, to allow for a more flexible functional form we also include higher order terms of mother's and father's age and education. We also include interaction terms between mother's race and mother's age and splines for mother's age with knots at 18 and 35 (because pregnant women under the age of 18 or above the age of 35 may have higher health risks with pregnancy) and splines for mother's education with a knot at 12, for highschool completion. Specifically, we estimate the model: 
 
 \begin{equation*}
 \begin{gathered}
@@ -158,7 +158,7 @@ smoking_i = \pi_0 + \sum_{j = 1}^J \pi_j X_{ji} + \nu_1 mother\_age_i^2 + \nu_2 
 \nu_{13} I (mother\_educ_i >= 12) (mother\_educ_i - 12)^3 + \epsilon_i
 \end{gathered}
 \end{equation*}
-Then we regress $birthweight_i$ on $smoking_i$ and all of the covariates selected by LASSO in either equation 1 or 2 above. In each case, we cross-validate the LASSO and choose the value of lambda such that the mean cross-validated error is within 1 standard error of the minimum. 
+Then we regress $birthweight_i$ on $smoking_i$ and all of the covariates selected by LASSO in either equation 1 or 2 above. In each case, we cross-validate the LASSO and choose lambda such that the mean cross-validated error is within 1 standard error of the minimum. 
 
 ```{r, include = TRUE}
 #First convert factor variables in dataset to factor variables
@@ -175,7 +175,7 @@ mom_dt[,preterm := as.factor(preterm)]
 #Lasso for lm1
 x1 <- model.matrix(lm1, data = mom_dt) #create X matrix
 lasso_y <- cv.glmnet(x1, mom_dt$dbrwt, family = "gaussian", standardize = TRUE, intercept = TRUE, alpha = 1, type = "mse")
-plot(lasso_y)
+#plot(lasso_y)
 #lasso_y$glmnet.fit
 coef(lasso_y, s = "lambda.1se") #Coefficients from lasso for lambda that gets error within 1 se of the minimum
 
@@ -184,7 +184,7 @@ lm2 <- lm(tobacco ~ factor(stresfip) + factor(mrace3) + factor(birmon) + factor(
 
 x2 <- model.matrix(lm2, data = mom_dt) #create X matrix
 lasso_d <- cv.glmnet(x2, mom_dt$dbrwt, family = "gaussian", standardize = TRUE, intercept = TRUE, alpha = 1, type = "mse")
-plot(lasso_d)
+#plot(lasso_d)
 #lasso_d$glmnet.fit
 coef(lasso_d, s = "lambda.1se") #Coefficients from lasso for lambda that gets error within 1 se of the minimum
 
@@ -202,7 +202,7 @@ After our LASSO procedure, our final model is:
 
 \begin{equation*}
 \begin{gathered}
-birthweight_i = \alpha_i + \beta Smoking_i + \delta_1 mother\_race_i + \delta_2 mother_hispanic_i == 2 + \delta_3 mother_hispanic_i == 5 + \delta_4 pre4000_i + \\
+birthweight_i = \alpha_i + \beta Smoking_i + \delta_1 mother\_race_i + \delta_2 mother\_hispanic_i == 2 + \delta_3 mother\_hispanic_i == 5 + \delta_4 pre4000_i + \\
 \delta_5 preterm_i + \delta_6 marital\_status_i + \delta_7 last\_birth_i + \delta_8 plurality_i + \delta_9 mother\_educ_i + \delta_{10}mother\_educ_i^2 + 
 \delta_{11}father\_educ_i + \\
 \delta_{12}father\_educ_i^2 + \delta_{13} I (mother\_age_i > 35) (mother\_age_i - 35)^3 + \delta_{14} mother\_race_i == 3 X mother\_age_i + \epsilon_i
@@ -233,9 +233,7 @@ We know that if we condition on observables, we will get a consistent estimate o
 
 Try a few ways to estimate the effects of maternal smoking on birthweight:
 
-## 2a
-
-a) First create the propensity score. For our purposes let's use a logit specification. First specify the logit using all of the "predetermined" covariates (don't include interactions). Next, include only those "predetermined" covariates that enter significantly in the first logit specification. How comparable are the propensity scores? If they are similar does this imply that we have the "correct" set of covariates in the logit specification used for our propensity score?
+(a) First create the propensity score. For our purposes let's use a logit specification. First specify the logit using all of the "predetermined" covariates (don't include interactions). Next, include only those "predetermined" covariates that enter significantly in the first logit specification. How comparable are the propensity scores? If they are similar does this imply that we have the "correct" set of covariates in the logit specification used for our propensity score?
 
 ```{r}
 
@@ -264,11 +262,11 @@ summary(prop_score_diff)
 
 ```
 
-In the first logit, we include state of residence, mother's age, mother's race, mother's education, birth order, interval since last birth, father's age, father's Hispanic origin, father's education, birth month, plurality, previous heavy child, and previous preterm. This is a combination of the "predetermined" variables we selected and discussed in the last problem set and the ones discussed in the problem set solutions. We find that all coefficients are significant, except for state of residence. We remove that from the next regression and the propensity scores, which are the fitted values of the logit, do not change very much. This does not guarantee we are estimating the logit with the correct set of covariates. There could be important covariates that we do not have in this dataset that we would want to use in the logit specification. The fact that our propensity scores do not change much between the two specifications just gives us confidence that state of residence was not an important regressor to include. Moving forward, we will use the propensity scores from the second specification.
+In the first logit, we include state of residence, mother's age, mother's race, mother's hispanic origin, mother's education, birth order, interval since last birth, father's age, father's Hispanic origin, father's education, birth month, plurality, previous heavy child, and previous preterm. This is a combination of the "predetermined" variables we selected and discussed in the last problem set and the ones discussed in the problem set solutions. We find that all coefficients are significant, except for state of residence. We remove that from the next regression and the propensity scores, which are the fitted values of the logit, do not change very much. This does not guarantee we are estimating the logit with the correct set of covariates. There could be important covariates that we do not have in this dataset that we would want to use in the logit specification. The fact that our propensity scores do not change much between the two specifications just gives us confidence that state of residence was not an important regressor to include. Moving forward, we will use the propensity scores from the second specification.
 
-## 2b
+\bigskip
 
-Control directly for the estimated propensity scores using a regression analysis, and estimate an average treatment effect. State clearly the assumptions under which your estimate is correct.
+(b) Control directly for the estimated propensity scores using a regression analysis, and estimate an average treatment effect. State clearly the assumptions under which your estimate is correct.
 
 ```{r}
 
@@ -279,7 +277,9 @@ prop_reg <- lm(dbrwt ~ tobacco + prop_score_sig, data = mom_dt)
 
 Controlling directly for the propensity score, we get the ATE is `r round(prop_reg$coefficients[[2]], 2)` and is statistically significant at the 99.9\% level. The assumption under which this estimate is consistent is unconfoundedness and homogeneous treatment effects. If we instead believed that there were heterogeneous treatment effects (that varied with $X$), then this regression does not provide meaningful results.
 
-## 2c
+\bigskip
+
+(c) As discussed in class, one can use the estimated propensity scores to reweight the outcomes of non-smokers and estimate the average treatment effect. Compute an estimate of the average treatment effect and the "effect of the treatment on the treated" by appropriate reweighting of the data. 
 
 ```{r}
 
@@ -307,17 +307,17 @@ tau_tot <- tot_y1 - tot_y0
 
 We have from lecture that the ATE using inverse propensity weighting is 
 
-$$ \hat{\tau}_{ATE} = (\sum^N \frac{D_iY_i}{\hat{p}(X_i)} / \sum^N \frac{D_i}{\hat{p}(X_i)}) - (\sum^N \frac{(1-D_i)Y_i}{1-\hat{p}(X_i)} / \sum^N \frac{1-D_i}{1-\hat{p}(X_i)}) $$ 
+$$ \hat{\tau}_{ATE} = \bigg(\sum^N \frac{D_iY_i}{\hat{p}(X_i)} / \sum^N \frac{D_i}{\hat{p}(X_i)}) - (\sum^N \frac{(1-D_i)Y_i}{1-\hat{p}(X_i)} / \sum^N \frac{1-D_i}{1-\hat{p}(X_i)}\bigg) $$ 
 
 and using this formula, we get that the ATE is `r round(tau_ipw, 2)`. We have from section that the TOT using inverse propensity weighting is 
 
-$$ \hat{\tau}_{TOT} = (\sum^N D_iY_i / \sum^N D_i - (\sum^N \frac{\hat{p}(X_i)(1-D_i)Y_i}{1-\hat{p}(X_i)} / \sum^N \frac{\hat{p}(X_i)(1-D_i)}{1-\hat{p}(X_i)})  $$
+$$ \hat{\tau}_{TOT} = \bigg(\sum^N D_iY_i / \sum^N D_i - (\sum^N \frac{\hat{p}(X_i)(1-D_i)Y_i}{1-\hat{p}(X_i)} / \sum^N \frac{\hat{p}(X_i)(1-D_i)}{1-\hat{p}(X_i)}\bigg)  $$
 
 and using this formula, we get that the TOT is `r round(tau_tot, 2)`.
 
-## 2d
+\bigskip
 
-Estimate the counterfactual densities relevant for the above part with a kernel density estimator. That is, estimate the density of birthweight (or log birthweight) if everyone smoked and again if no one smoked. Hint: Consider directly applying the Hirano, Imbens, and Ridder propensity score reweighting scheme in the context of estimating the densities of the treated and control groups (rather than the means of the treated and control groups). Stata has very useful preprogrammed commands. In addition to using the preprogrammed Stata command to compute/graph the kernel density over the entire range of birthweight, please also calculate by hand the kernel estimator at birthweight equals 3,000 grams (and provide the code you wrote that shows the calculation of the kernel estimator at this single point). Play around with a bandwidth starting with half the default Stata bandwidth. Choose the same bandwidth for all the pictures, and produce a (beautiful, production quality) figure depicting both densities.
+(d) Estimate the counterfactual densities relevant for the above part with a kernel density estimator. That is, estimate the density of birthweight (or log birthweight) if everyone smoked and again if no one smoked. Hint: Consider directly applying the Hirano, Imbens, and Ridder propensity score reweighting scheme in the context of estimating the densities of the treated and control groups (rather than the means of the treated and control groups). Stata has very useful preprogrammed commands. In addition to using the preprogrammed Stata command to compute/graph the kernel density over the entire range of birthweight, please also calculate by hand the kernel estimator at birthweight equals 3,000 grams (and provide the code you wrote that shows the calculation of the kernel estimator at this single point). Play around with a bandwidth starting with half the default Stata bandwidth. Choose the same bandwidth for all the pictures, and produce a (beautiful, production quality) figure depicting both densities.
 
 ```{r}
 
@@ -353,11 +353,11 @@ We plot the kernel density over the entire range of birthweights, using the Gaus
 
 $$ \hat{f}(x) = \frac{1}{nh} \frac{1}{\sqrt{2 \pi}} \sum\limits_i^n e^{-1/2 (\frac{x - x_i}{h})^2} $$
 
-where $x = 3000$ , $n=$ `r nrow(mom_dt)`, and $h=$ `r round(d_all$bw, 2)`. We get that the density at 3000g is `r round(ke_3000, 5)`, which visually corresponds to our plot of the density.
+where $x = 3,000$ , $n=$ `r nrow(mom_dt)`, and $h=$ `r round(d_all$bw, 2)`. We get that the density at 3000g is `r round(ke_3000, 5)`, which visually corresponds to our plot of the density.
 
-## 2e
+\bigskip
 
-Take one of your densities and display an estimate of the density using different bandwidths as well as the one you settled on. What happens with bigger (smaller) bandwidths?
+(e) Take one of your densities and display an estimate of the density using different bandwidths as well as the one you settled on. What happens with bigger (smaller) bandwidths?
 
 ```{r}
 # plot bandwidth selected
@@ -381,33 +381,33 @@ plot(d1_verylow, col="black", main="Kernel Density, Smoker: Very Low Bandwidth",
 
 ```
 
-We use the treated group counterfactual density and try a few different bandwidths. First, we plot our selected bandwidth, `r round(d1$bw, 2)`. Next, since the treated group is smaller than the control group, the bandwidth selected had been larger than that of the control group, so we plot the density had we used the same bandwidth as the control, ~ 49.8. Next we crank up the bandwidth to 200 and finally we drop it to 20. The higher the bandwidth, the smoother the density. At a bandwidth of 20, the density becomes a lot choppier. This is what we expect as a lower bandwidth includes fewer points and thus produces less smoothing. 
-
-## 2f 
-
-What are the benefits of the weighting approach (from part c)? What are the potential drawbacks? Pay particular attention to to the issue of people with extremely high and extremely low values of the propensity score.
-
-\medskip
-
-The benefits of the weighting approach in part c are that we can get a consistent estimate of the ATE and TOT that is also efficient. One potential drawback is that we had to first estimate the propensity score, which we are not certain we estimate correctly. Additionally, there are problems with overlap if the treated and control groups are very different. This could make it so people with extremely high propensity scores are only found in the treated group and people with extremely low propensity scores are only found in the control group. This will cause our weighting methods to still not perform well. However, if this is an issue, we can trim the observations above or below certain propensity scores, as Imbens did in the LaLonde data. 
+We use the treated group counterfactual density and try a few different bandwidths. First, we plot our selected bandwidth, `r round(d1$bw, 2)`. Next, since the treated group is smaller than the control group, the bandwidth selected had been larger than that of the control group, so we plot the density had we used the same bandwidth as the control, ~ 49.8. Next we crank up the bandwidth to 200 and finally we drop it to 20. The higher the bandwidth, the smoother the density. At a bandwidth of 20, the density becomes a lot choppier. This is what we expect as a lower bandwidth in a Gaussian kernel gives less weight to observations further from x, making $\hat{f}(x)$ more sensitive to observations closer to x, producing less smoothing.
 
 \bigskip
 
-## 2g
-
-Present your findings and interpret the results on the relationship between birthweight and smoking. For the estimates in parts (b) and (c), consider which of the following conditions must hold in order for that estimate to be valid:
-i. The treatment effect heterogeneity is linear in the propensity score.
-ii. The treatment effect heterogeneity is not linear in the propensity score.
-iii. The decision to smoke is completely randomly assigned.
-iv. Conditional on the exogenous variables the decision to smoke is randomly assigned.
+(f) What are the benefits of the weighting approach (from part c)? What are the potential drawbacks? Pay particular attention to to the issue of people with extremely high and extremely low values of the propensity score.
 
 \medskip
 
-Our findings are included with the relevant sections above. All findings are consistent with one another in finding that smoking causes lower birthweights -- we see this both ATE's estimated and in the counterfactual densities. In part (b), we include the propensity score in a regression. In order for this estimate to be valid, we need assumption i and iv to hold (assumption i would be the case where we interact the propensity score with the treatment, as discussed in part b). In part (c), we again need iv to hold. 
+The benefits of the weighting approach in part c are that we can get consistent estimates of the ATE and TOT that are also efficient. One potential drawback is that we have to first estimate the propensity score, which we are not certain we estimate correctly. Additionally, we run into problems if there is insufficient overlap in the treatment and control distributions of the covariates. This in turn would cause insufficient overlap in the propensity score itself, where there would be ranges of $p(X)$ that contain many estimated scores from the treatment group but not from the control group, or vice versa. If the propensity score $p(X_i)$ gets close to zero or one, then the weights become enormous, making our estimation in part (c) above very sensitive to outliers. Specifically, since people with extremely high propensity scores would mostly be found in the treated group and people with extremely low propensity scores would mostly be found in the control group, any observations with extremely high propensity scores found in the control group, or with extremely low propensity scores found in the treatment group, would receive an enormous weight since our weighting scheme above balances the propensity score across treated and control group. Our estimation would then be very sensitive to a few observations, or outliers. To address this concern, we can trim observations above or below certain propensity scores to improve overlap between treatment and control, as in Imbens (2007). 
+
+\bigskip
+
+(g) Present your findings and interpret the results on the relationship between birthweight and smoking. For the estimates in parts (b) and (c), consider which of the following conditions must hold in order for that estimate to be valid:
+A1. The treatment effect heterogeneity is linear in the propensity score.
+A2. The treatment effect heterogeneity is not linear in the propensity score.
+A3. The decision to smoke is completely randomly assigned.
+A4. Conditional on the exogenous variables the decision to smoke is randomly assigned.
+
+\medskip
+
+Our findings are included with the relevant sections above. All of our results are consistent with one another in finding that smoking causes lower birthweights -- as indicated by our estimates of the ATE, the TOT, and the counterfactual densities of birthweight. In part (b), we include the propensity score in a regression. In order for this estimate to be valid, we need assumptions A1 and A4 to hold (assuming we also include an interaction term between treatment status and the propensity score to allow for heterogeneous treatment effects). In part (c), we again need assumption A4 to hold. 
 
 # Question 3
+A potentially more informative way to describe how birth weight affects smoking is to estimate the "non-parametric" conditional mean of birth weight as a function of the estimated probability of smoking, separately for smokers and non-smokers on the same graph. To do so, divide the data from smokers into 100 approximately equally spaced bins based on the estimated propensity score. Do teh same for nonsmokers. Use the blocking estimator we discussed in class. Interpret your findings and relate them to the results in (2b).
 
 # Question 4
+Low birth weight births (less than 2,500 grams) are considered particularly undesirable since they comprise a large share of infant deaths. Redo question 3 using an indicator for low birth weight births as the outcome of interest. Interpret your findings.
 
 # Question 5
 
