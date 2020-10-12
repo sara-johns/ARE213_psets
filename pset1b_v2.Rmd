@@ -23,14 +23,13 @@ rm(list = ls())
 
 # install.packages("tidyverse")
 # install.packages("MatchIt")
-# install.packages("lfe")
 
 # Load packages
 library(pacman)
 library(tidyverse)
 library(MatchIt)
 library(lfe)
-library(zoo)
+library(plm)
 p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats)
 
 # Directory 
@@ -450,27 +449,22 @@ To see that we can estimate a fully saturated model, note from the codebook that
 
 ```{r}
 # the following code came from Arthur's tip on the Slack channel
+# when I try to run it though, it keeps running continuously
 
 saturated_data <- mom_dt %>%
-  # take a subset of the data with only the variables we are interested in
   select(dbrwt, tobacco, rectype, pldel3, cntocpop, stresfip, dmage, mrace3, 
          dmar, adequacy, csex, dplural) %>%
-  # combinations of the variables in X
   group_by(rectype, pldel3, cntocpop, stresfip, dmage, mrace3, dmar, adequacy, 
            csex, dplural) %>%
-  # give each group a unique id
   mutate(group = cur_group_id()) %>%
   ungroup()
 
-#Updated upstream
-# the output (from running on Google Colab) is included below
-# the line below takes a long time to run, so is commented out
-
-# felm(dbrwt ~ tobacco + factor(group), saturated_data)
+#First set row number to be unique mother ID
+id <- rownames(saturated_data)
+saturated_data <- cbind(id = id, saturated_data)
+saturated_model <- plm(dbrwt ~ tobacco + factor(group), data=saturated_data, index = "id")
 
 ```
-
-![output](pset1b_Q5b_output.png)
 
 Add proof
 
@@ -482,43 +476,16 @@ Add proof
 ```{r}
 # useful documentation on page 9 https://r.iq.harvard.edu/docs/matchit/2.4-20/matchit.pdf
 # right now this is giving me no matched units
+matched <- matchit(tobacco ~ rectype + pldel3 + cntocpop + stresfip + dmage + mrace3 + dmar + adequacy + csex + dplural, data=mom_dt, method="exact")
 
+matched <- matchit(tobacco ~ group, data = saturated_data, method = "exact")
 ```
 
 \bigskip
 
 (d)*Estimate the weighted matching estimator you propose. Compare it to the regression estimate from part (b). Are they similar?
 
-```{r} 
-#Generate weights
-saturated_data <- as.data.table(saturated_data) #set data as a data.table
-N_T <- nrow(saturated_data[tobacco == 1]) #number of treatment observations
-N_C <- nrow(saturated_data[tobacco == 0]) #number of control observations
-
-saturated_data[,n:= .N, by = .(group, tobacco)] #generate n_jk, which is the number of observations in each group with the same treatment status
-saturated_data[,vark := var(tobacco), by = .(group)] #generate var_k, which is the variance of the treatment variable within each group
-saturated_data[,nvark := n*vark] #generate a variable = n*vark
-saturated_data[,matching_weights := ifelse(tobacco == 1, nvark*N_T/sum(saturated_data[tobacco == 1 & !is.na(nvark), nvark]), nvark*N_C/sum(saturated_data[tobacco == 0 & !is.na(nvark), nvark]))] #normalize weights so that they sum to N_T and N_C respectively
-
-# estimate ATE
-tau_M <- (1/N_T)*sum(saturated_data[tobacco == 1 & !is.na(matching_weights), matching_weights*dbrwt]) - (1/N_C)*sum(saturated_data[tobacco == 0 & !is.na(matching_weights), matching_weights*dbrwt])
-
-# [old way of estimating ATE when weights added up to 1; we can delete the code before submission, this is just for a reference]
-#saturated_data[tobacco == 1,ywT := sum(dbrwt*matching_weights), by=.(group)] #within each group, generate the sum of y_ik * w_ik for treated observations
-#saturated_data[tobacco == 0,ywC := sum(dbrwt*matching_weights), by=.(group)]#within each group, generate the sum of y_ik * w_ik for control observations
-#saturated_data <- saturated_data[,ywT := na.locf0(ywT, fromLast = TRUE), by = .(group)][,ywT := na.locf(ywT), by = .(group)] #fill in NAs so that each observation in each group has a ywT value
-#saturated_data <- saturated_data[,ywC := na.locf0(ywC, fromLast = TRUE), by = .(group)][,ywC := na.locf(ywC), by = .(group)] #fill in NAs so that each observation in each group has a ywC value
-#saturated_data_groups <- unique(saturated_data, by = "group") #create sub-table that includes 1 observation per unique group
-#tau_M <- sum(saturated_data_groups[!is.na(ywT) & !is.na(ywC),ywT-ywC]) #By our formula for the ATE for our proposed weighted matching estimator
-```
-
 \bigskip
-
-As discussed in part (c) above, we estimate weights:
-$$w_{ik} = \frac{n_{ik} \sigma_{k} N_c}{\sum_{k=1}^K \sum_{i \in (D_i = c)} n_{ik} \sigma_{k}} \forall c \in {0,1}$$
-And then use our weights to estimate the ATE:
-$$\tau_M = \frac{1}{N_T}\sum_{D_i = 1} y_{ik} w_{ik} - \frac{1}{N_C}\sum_{D_i = 0} y_{ik}w_{ik}$$
-Using this procedure, we estimate $\tau_M =$ `r round(tau_M, 2)`, which is less than what we estimated in part (b). 
 
 (e)*Is the sample size of your regression the same as the sample size of your matching estimator, or does the regression have more observations? If the regression has more observations, why don't these extra observations influence the treatment effect estimate? 
 
@@ -530,42 +497,6 @@ The sample size of the regression and the sample size of the matching estimator 
 (f)*Compute a standard error for your matching estimator using the formula from Imbens (2015). Specifically, note that your matching estimator should have a form $\frac{1}{N_t}\sum_{d_i=1} w_i y_i - \frac{1}{N_c} \sum_{d_i=0} w_i y_i$, where $\sum_{d_i=1} w_i = N_t$ and $\sum_{d_i=0} w_i = N_c$. Then the conditional variance is approximately $\sum_i (\frac{d_i}{N_t^2} + \frac{1-d_i}{N_c^2})w_i^2 \hat{\sigma}^2_{d_i}(x_i)$, where $\hat{\sigma}^2_{d_i}(x_i) = \frac{1}{2}(y_i - y_{nn(i)})^2$, and $y_{nn(i)}$ is the nearest neighbor to observation $i$ with the \textit{same} treatment status. Figure out the implicit weights $w_i$ in your estimator from part (d), and compute the conditional variance. Is it close to your regression coefficient variance? 
 
 \bigskip
-
-```{r}
-matches <- matchit(tobacco ~ rectype + pldel3 + cntocpop + stresfip + dmage + mrace3 + dmar + adequacy + csex + dplural, data=mom_dt, method="nearest")
-matches.out.matrix <- matches$match.matrix #gives us a matrix of each observation and its nearest neighbor
-matches.out <- as.data.table(matches.out.matrix)
-setnames(matches.out, "1", "match") #rename match column
-
-#First set row number to be unique mother ID
-id <- rownames(saturated_data)
-saturated_data <- cbind(id = id, saturated_data)
-saturated_data[,id:=as.numeric(id)] #convert id from character to numeric
-
-
-#Also set row number to be unique mother ID in matches dataset
-id2 <- row.names(matches.out.matrix)
-matches.out <- cbind(id = id2, matches.out)
-matches.out[,id := as.numeric(id)] #convert id from character to numeric
-matches.out[,match := as.numeric(match)] #convert match from character to numeric
-
-#Merge match data to main dataset using id as link variable
-saturated_data <- merge(saturated_data, matches.out, by = "id", all.x = TRUE)
-
-#Merge birthweight information of matched observations to main dataset
-birthweights <- saturated_data[,.(match = id, match_dbrwt = dbrwt)] #create sub dataset of ID and birthweight
-saturated_data <- merge(saturated_data, birthweights, by = "match")
-
-# Calculate conditional variance
-saturated_data[,diff := dbrwt - match_dbrwt]
-saturated_data[,sigma_d := 0.5*diff^2]
-cond_var <- sum((1/N_T^2)+(1/N_C^2)*saturated_data[!is.na(matching_weights), matching_weights*sigma_d])
-```
-
-We calculated the weights directly in part (d) above as:
-$$w_{ik} = \frac{n_{ik} \sigma_{k} N_c}{\sum_{k=1}^K \sum_{i \in (D_i = c)} n_{ik} \sigma_{k}} \forall c \in {0,1}$$
-
-To calculate the Imbens standard errors, we use MatchIt to find the nearest neighbor match for each observation with the same treatment status. We can then calculate the conditional variance using the formula above, which we find is equal to `r round(cond_var,2)`. 
 
 # Question 6
 
