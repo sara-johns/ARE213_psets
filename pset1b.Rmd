@@ -35,8 +35,8 @@ p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, g
 
 # Directory 
 # base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
-base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
-# base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
+#base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 # base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
 # read data
@@ -448,7 +448,7 @@ To see that we can estimate a fully saturated model, note from the codebook that
 
 \bigskip
 
-We estimate the saturated model from (a) (which gets the right CEF for $E[ \ birthweight \ | \ X]$) with the treatment (our variable for whether or not they smoked during pregnancy) also on the right hand side. We will think of the interaction terms we get from the saturated model as $g(X_i)$. So we run the regression $y_i = \alpha + \tau D_i + \beta g(X_i) + \epsilon_i$, with $D_i$ being the treatment.
+We estimate the saturated model from (a) with our treatment variable (smoking during pregnancy) also on the right hand side. Specifically, we estimate $y_i = \alpha + \tau D_i + \beta g(X_i) + \epsilon_i$, where $D_i$ represents treatment status and $g(X_i)$ captures all of the parameters for every possible combination of values in our other regressors.
 
 ```{r}
 # the following code came from Arthur's tip on the Slack channel
@@ -473,24 +473,26 @@ saturated_data <- mom_dt %>%
 
 ![5(b) regression output](pset1b_Q5b_output.png)
 
-We get -217.6 for our estimate of the effect of smoking during pregnancy on birthweight (in grams), so this is $\tau$ in our case.
+Our model estimates an ATE of $\tau = -217.6$, that is maternal smoking is associated with a decrease of 217.6 grams in birth weight, ceteris paribus.  
 
-From Lecture Notes 2C, we have the generic matching estimator is 
+\bigskip
+
+Note that our regression estimate and an exact matching estimator produce the same result under the assumptions that the treatment effect of smoking on birthweight is independent of the covariates and that the conditional independence assumption holds given our variables in $X$. To see this, note that from Lecture Notes 2C we can define a generic matching estimator as: 
 
 $$\hat{\tau}_M = \frac{1}{N_T}  \sum_{i \in \{D_i=1\}} [y_i -  \sum_{j \in \{D_j=0\}} w_i(j)y_j]$$
 
-For exact matching, $w_i(j) = 1$ if $X_i = X_j$, which is an exact match, and 0 otherwise. So for the weights $w_i(j)$, we have $w_i(j) = \dfrac{\textbf{1}\{X_i = X_j\}}{ \sum_{j \in \{D_j=0\}} \textbf{1}\{X_i = X_j\}}$ because the numerator accounts for whether or not observation $j$ is an exact match with treated observation $i$ in terms of the covariates $X$, and the denominator accounts for how many control observations match treated observation $i$ in terms of the covariates $X$. So we have 
+For exact matching, we match observations that have the exact same values for each covariate, that is we set the weights $w_i(j) = 1$ if $X_i = X_j$, and to 0 otherwise. Formally, we can define the weights for exacting matching as $w_i(j) = \dfrac{\textbf{1}\{X_i = X_j\}}{ \sum_{j \in \{D_j=0\}} \textbf{1}\{X_i = X_j\}}$, so that $\sum_j w_j(j)y_i = \bar{y}_c$ the control mean, so $\hat{\tau}_M$ is just the difference in means between the treatment and control groups. 
 
 $$\hat{\tau}_M = \frac{1}{N_T}  \sum_{i \in \{D_i=1\}} [y_i -  \sum_{j \in \{D_j=0\}} w_i(j)y_j]$$
 
 
 $$= \frac{1}{N_T}  \sum_{i \in \{D_i=1\}} [y_i -  \sum_{j \in \{D_j=0\}} \dfrac{\textbf{1}\{X_i = X_j\}}{ \sum_{j \in \{D_j=0\}} \textbf{1}\{X_i = X_j\}}y_j]$$
 
-We substitute in expectations for $y_i$ to get 
+Substituting $y_i$ with the conditional expectation of $y$ given $X_i, D_i$, gives us: 
 
 $$= \frac{1}{N_T}  \sum_{i \in \{D_i=1\}} [E[y_i|D_i=1, g(X_i)] -  \sum_{j \in \{D_j=0\}} \dfrac{\textbf{1}\{X_i = X_j\}}{ \sum_{j \in \{D_j=0\}} \textbf{1}\{X_i = X_j\}}E[y_j|D_j=0, g(X_j)]]$$
 
-and using $y_i = \alpha + \tau D_i + \beta g(X_i) + \epsilon_i$ from above, we can simplify the expectations
+Under the assumptions of unconfoundedness, conditional independence, and a constant treatment effect, and because our CEF is linear under a fully saturated model, we know that we can consistently estimate $[E[y_i|D_i, g(X_i)]$ with the regression $y_i = \alpha + \tau D_i + \beta g(X_i) + \epsilon_i$. Substituting into our expression above yields: 
 
 $$= \frac{1}{N_T}  \sum_{i \in \{D_i=1\}} [(\alpha + \tau + \beta g(X_i)) -  \sum_{j \in \{D_j=0\}} \dfrac{\textbf{1}\{X_i = X_j\}}{ \sum_{j \in \{D_j=0\}} \textbf{1}\{X_i = X_j\}}(\alpha + \beta g(X_j))]$$
 
@@ -508,23 +510,24 @@ $$= \frac{1}{N_T} N_T* \hat\tau$$
 
 $$=\hat\tau$$
 
-So if the treatment effect of smoking on birthweight is independent of the covariates in $X$, then exact matching and our regression estimate the same thing (assuming the conditional independence assumption holds given the variables in $X$ listed above).
+As we can see, under the assumption that the treatment effect of smoking on birthweight is independent of the covariates and that the conditional independence assumption holds, exact matching and our regression model both consistently estimate the ATE $\hat{\tau}$. 
 
+\bigskip
 
 (c)*Develop a weighted version of the exact matching estimator that estimates the same thing as the regression above (regardless of whether the treatment effect is independent of covariates). 
 
 \bigskip
 
-The following was discussed with and inspired by Abdou. Because we have exact matching, each treatment and control observation will belong to only one cell, where we define a cell $k$ as all observations for which $X_i = X_j\ \forall \ i, j$. Our weights need to account for within cell overlap of the treatment status.
+The following was discussed with and inspired by Abdou. Under the assumption that the treatment effect is independent of the covariates, a simple difference in means between the treatment and control groups (as discussed in part b above) is sufficient to consistently estimate the ATE. However, if we relax the assumption that the treatment effect is independent of the covariates, then we are essentially allowing for selection on the observables, and we need to adjust our weights accordingly. Intuitively, we want to place less weight on observations in cells where there is little overlap between treatment and control, and more weight on observations in cells with more overlap between treatment and control. 
 
-For $n_{ik} = |\{j: j \in k \ \& \ D_i = D_j\}| = |\{j: X_i = X_j \ \& \ D_i = D_j\}|$ being the number of observations with the same treatment status as $i$ in a given cell $k$, $D_{ik}$ being the treatment status of $i$ in cell $k$, and $\sigma_k$ the variance within a given cell $k$ of the treatment variable, we have
+Because we have exact matching, each treatment and control observation will belong to only one cell, where we define a cell $k$ as all observations for which $X_i = X_j$. Define $n_{ik} = |\{j: j \in k \ \& \ D_i = D_j\}| = |\{j: X_i = X_j \ \& \ D_i = D_j\}|$ as the number of observations with the same treatment status as $i$ in a given cell $k$, $D_{ik}$ being the treatment status of $i$ in cell $k$. Since we also need to account for within-cell overlap of the treatment status in our weights, we also define $\sigma_k$ as the within-cell variance of treatment status. Then we define our weights as: 
 
 $$w_{ik} = \dfrac{n_{ik}\sigma_k N_c}{\sum_{k=1}^K \sum_{i \in (D_i = c)} n_{ik}\sigma_k} \forall c \in 0,1$$
 
-This makes sense because we want to give 0 weight to observations with $\sigma_k=0$ because those cells will not have enough variation to give us the treatment effect for a given cell.
+which are normalized to sum to $N_T$ and $N_C$ for treatment and control observations respectively, where $N_T$ is the total number of treatment observations and $N_C$ is the total number of control observations in our sample. Note that this weighting scheme gives 0 weight to observations in cells with insufficient overlap in treatment status, that is cells with only treatment or only control observations. 
 
-We have $$\sum_{k=1}^K \ \sum_{i \in \{D_{ik} = c\}} w_{ik} = 1 \forall c \in \{0,1\}$$
-So our weighted version of the exact matching estimator that estimates the same thing as the regression above (regardless of whether the treatment effect is independent of covariates) is
+$$\sum_{D_i = c} w_{i} = N_c \text{ for } c \in \{0,1\}$$
+Then, using the weights defined above, we can estimate the ATE as: 
 
 $$\tau_M = \frac{1}{N_T}\sum_{D_i = 1} y_{ik} w_{ik} - \frac{1}{N_C}\sum_{D_i = 0} y_{ik}w_{ik}$$
 
@@ -574,11 +577,11 @@ The sample size of the regression and the sample size of the matching estimator 
 
 \bigskip
 
-```{r}
-matches <- matchit(tobacco ~ rectype + pldel3 + cntocpop + stresfip + dmage + mrace3 + dmar + adequacy + csex + dplural, data=mom_dt, method="nearest")
-matches.out.matrix <- matches$match.matrix #gives us a matrix of each observation and its nearest neighbor
-matches.out <- as.data.table(matches.out.matrix)
-setnames(matches.out, "1", "match") #rename match column
+```{r cache = TRUE}
+#matches <- matchit(tobacco ~ rectype + pldel3 + cntocpop + stresfip + dmage + mrace3 + dmar + adequacy + csex + dplural, data=mom_dt, method="nearest")
+#matches.out.matrix <- matches$match.matrix #gives us a matrix of each observation and its nearest neighbor
+#matches.out <- as.data.table(matches.out.matrix)
+#setnames(matches.out, "1", "match") #rename match column
 
 #First set row number to be unique mother ID
 id <- rownames(saturated_data)
@@ -587,28 +590,28 @@ saturated_data[,id:=as.numeric(id)] #convert id from character to numeric
 
 
 #Also set row number to be unique mother ID in matches dataset
-id2 <- row.names(matches.out.matrix)
-matches.out <- cbind(id = id2, matches.out)
-matches.out[,id := as.numeric(id)] #convert id from character to numeric
-matches.out[,match := as.numeric(match)] #convert match from character to numeric
+#id2 <- row.names(matches.out.matrix)
+#matches.out <- cbind(id = id2, matches.out)
+#matches.out[,id := as.numeric(id)] #convert id from character to numeric
+#matches.out[,match := as.numeric(match)] #convert match from character to numeric
 
 #Merge match data to main dataset using id as link variable
-saturated_data <- merge(saturated_data, matches.out, by = "id", all.x = TRUE)
+#saturated_data <- merge(saturated_data, matches.out, by = "id", all.x = TRUE)
 
 #Merge birthweight information of matched observations to main dataset
-birthweights <- saturated_data[,.(match = id, match_dbrwt = dbrwt)] #create sub dataset of ID and birthweight
-saturated_data <- merge(saturated_data, birthweights, by = "match")
+#birthweights <- saturated_data[,.(match = id, match_dbrwt = dbrwt)] #create sub dataset of ID and birthweight
+#saturated_data <- merge(saturated_data, birthweights, by = "match")
 
 # Calculate conditional variance
-saturated_data[,diff := dbrwt - match_dbrwt]
-saturated_data[,sigma_d := 0.5*diff^2]
-cond_var <- sum((1/N_T^2)+(1/N_C^2)*saturated_data[!is.na(matching_weights), matching_weights*sigma_d])
+#saturated_data[,diff := dbrwt - match_dbrwt]
+#saturated_data[,sigma_d := 0.5*diff^2]
+#cond_var <- sum((1/N_T^2)+(1/N_C^2)*saturated_data[!is.na(matching_weights), matching_weights*sigma_d])
 ```
 
 We calculated the weights directly in part (d) above as:
 $$w_{ik} = \frac{n_{ik} \sigma_{k} N_c}{\sum_{k=1}^K \sum_{i \in (D_i = c)} n_{ik} \sigma_{k}} \forall c \in {0,1}$$
 
-To calculate the Imbens standard errors, we use MatchIt to find the nearest neighbor match for each observation with the same treatment status. We can then calculate the conditional variance using the formula above, which we find is equal to `r round(cond_var,2)`. 
+To calculate the Imbens standard errors, we use MatchIt to find the nearest neighbor match for each observation with the same treatment status. We can then calculate the conditional variance using the formula above, which we find is equal to [insert answer here]. 
 
 # Question 6
 
