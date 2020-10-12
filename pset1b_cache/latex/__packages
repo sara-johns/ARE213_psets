@@ -1,10 +1,4 @@
 base
-methods
-datasets
-utils
-grDevices
-graphics
-stats
 pacman
 tidyverse
 ggplot2
@@ -25,3 +19,5 @@ readstata13
 xtable
 binom
 glmnet
+FNN
+fastDummies
