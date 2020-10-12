@@ -35,8 +35,8 @@ p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, g
 
 # Directory 
 # base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
-#base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
-base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
+base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+# base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 # base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
 # read data
@@ -448,6 +448,8 @@ To see that we can estimate a fully saturated model, note from the codebook that
 
 \bigskip
 
+We estimate the saturated model from (a) (which gets the right CEF for $E[ \ birthweight \ | \ X]$) with the treatment (our variable for whether or not they smoked during pregnancy) also on the right hand side. We will think of the interaction terms we get from the saturated model as $g(X_i)$. So we run the regression $y_i = \alpha + \tau D_i + \beta g(X_i) + \epsilon_i$, with $D_i$ being the treatment.
+
 ```{r}
 # the following code came from Arthur's tip on the Slack channel
 
@@ -462,7 +464,6 @@ saturated_data <- mom_dt %>%
   mutate(group = cur_group_id()) %>%
   ungroup()
 
-#Updated upstream
 # the output (from running on Google Colab) is included below
 # the line below takes a long time to run, so is commented out
 
@@ -470,11 +471,45 @@ saturated_data <- mom_dt %>%
 
 ```
 
-![output](pset1b_Q5b_output.png)
+![5(b) regression output](pset1b_Q5b_output.png)
 
-Add proof
+We get -217.6 for our estimate of the effect of smoking during pregnancy on birthweight (in grams), so this is $\tau$ in our case.
 
-\bigskip
+From Lecture Notes 2C, we have the generic matching estimator is 
+
+$$\hat{\tau}_M = \frac{1}{N_T}  \sum_{i \in \{D_i=1\}} [y_i -  \sum_{j \in \{D_j=0\}} w_i(j)y_j]$$
+
+For exact matching, $w_i(j) = 1$ if $X_i = X_j$, which is an exact match, and 0 otherwise. So for the weights $w_i(j)$, we have $w_i(j) = \dfrac{\textbf{1}\{X_i = X_j\}}{ \sum_{j \in \{D_j=0\}} \textbf{1}\{X_i = X_j\}}$ because the numerator accounts for whether or not observation $j$ is an exact match with treated observation $i$ in terms of the covariates $X$, and the denominator accounts for how many control observations match treated observation $i$ in terms of the covariates $X$. So we have 
+
+$$\hat{\tau}_M = \frac{1}{N_T}  \sum_{i \in \{D_i=1\}} [y_i -  \sum_{j \in \{D_j=0\}} w_i(j)y_j]$$
+
+
+$$= \frac{1}{N_T}  \sum_{i \in \{D_i=1\}} [y_i -  \sum_{j \in \{D_j=0\}} \dfrac{\textbf{1}\{X_i = X_j\}}{ \sum_{j \in \{D_j=0\}} \textbf{1}\{X_i = X_j\}}y_j]$$
+
+We substitute in expectations for $y_i$ to get 
+
+$$= \frac{1}{N_T}  \sum_{i \in \{D_i=1\}} [E[y_i|D_i=1, g(X_i)] -  \sum_{j \in \{D_j=0\}} \dfrac{\textbf{1}\{X_i = X_j\}}{ \sum_{j \in \{D_j=0\}} \textbf{1}\{X_i = X_j\}}E[y_j|D_j=0, g(X_j)]]$$
+
+and using $y_i = \alpha + \tau D_i + \beta g(X_i) + \epsilon_i$ from above, we can simplify the expectations
+
+$$= \frac{1}{N_T}  \sum_{i \in \{D_i=1\}} [(\alpha + \tau + \beta g(X_i)) -  \sum_{j \in \{D_j=0\}} \dfrac{\textbf{1}\{X_i = X_j\}}{ \sum_{j \in \{D_j=0\}} \textbf{1}\{X_i = X_j\}}(\alpha + \beta g(X_j))]$$
+
+and since we are only interested in $X_i = X_j$ for exact matching, 
+
+$$= \frac{1}{N_T}  \sum_{i \in \{D_i=1\}} [(\alpha + \tau + \beta g(X_i)) -  \sum_{j \in \{D_j=0|X_i = X_j\}} \dfrac{1}{ \sum_{j \in \{D_j=0\}} \textbf{1}\{X_i = X_j\}}(\alpha + \beta g(X_j))]$$
+
+$$= \frac{1}{N_T}  \sum_{i \in \{D_i=1\}} [(\alpha + \tau + \beta g(X_i)) -  \dfrac{ \sum_{j \in \{D_j=0|X_i = X_j\}} 1}{ \sum_{j \in \{D_j=0|X_i = X_j\}} \textbf{1}\{X_i = X_j\}}(\alpha + \beta g(X_j))]$$
+
+$$= \frac{1}{N_T}  \sum_{i \in \{D_i=1\}} [(\alpha + \tau + \beta g(X_i)) -  (\alpha + \beta g(X_j))]$$
+
+$$= \frac{1}{N_T}  \sum_{i \in \{D_i=1\}} \tau$$
+
+$$= \frac{1}{N_T} N_T* \hat\tau$$
+
+$$=\hat\tau$$
+
+So if the treatment effect of smoking on birthweight is independent of the covariates in $X$, then exact matching and our regression estimate the same thing (assuming the conditional independence assumption holds given the variables in $X$ listed above).
+
 
 (c)*Develop a weighted version of the exact matching estimator that estimates the same thing as the regression above (regardless of whether the treatment effect is independent of covariates). 
 
