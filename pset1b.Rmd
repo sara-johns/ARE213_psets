@@ -36,8 +36,8 @@ p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, g
 # Directory 
 # base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
 #base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
-base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
-# base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
+# base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
+ base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
 # read data
 mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
@@ -407,10 +407,41 @@ The benefits of the weighting approach in part c are that we can get consistent 
 Our findings are included with the relevant sections above. All of our results are consistent with one another in finding that smoking causes lower birthweights -- as indicated by our estimates of the ATE, the TOT, and the counterfactual densities of birthweight. In part (b), we include the propensity score in a regression. In order for this estimate to be valid, we need assumptions A1 and A4 to hold (assuming we also include an interaction term between treatment status and the propensity score to allow for heterogeneous treatment effects). In part (c), we again need assumption A4 to hold. 
 
 # Question 3
-A potentially more informative way to describe how birth weight affects smoking is to estimate the "non-parametric" conditional mean of birth weight as a function of the estimated probability of smoking, separately for smokers and non-smokers on the same graph. To do so, divide the data from smokers into 100 approximately equally spaced bins based on the estimated propensity score. Do teh same for nonsmokers. Use the blocking estimator we discussed in class. Interpret your findings and relate them to the results in (2b).
+A potentially more informative way to describe how birth weight affects smoking is to estimate the "non-parametric" conditional mean of birth weight as a function of the estimated probability of smoking, separately for smokers and non-smokers on the same graph. To do so, divide the data from smokers into 100 approximately equally spaced bins based on the estimated propensity score. Do the same for nonsmokers. Use the blocking estimator we discussed in class. Interpret your findings and relate them to the results in (2b).
+
+```{r}
+mom_dt[, block := as.numeric(cut(prop_score_sig, 100))] # Divide propensity scores into 100 bins.
+mom_dt[, low_bw := ifelse(dbrwt < 2500, 1, 0)] # Indicator for low birth weight
+
+# Divide smokers and non-smokers into propensity score bins, calculate mean birthweights and low birthweight rates
+tau_k_dt <- mom_dt[,.(mean_bw = mean(dbrwt), mean_low = mean(low_bw), n = .N), by = c("block", "tobacco")]
+tau_k_dt <- dcast(tau_k_dt, block ~ tobacco, value.var=c("mean_bw", "mean_low", "n"))
+
+N <- sum(tau_k_dt[,n_0],na.rm = TRUE) + sum(tau_k_dt[,n_1],na.rm = TRUE) # calculate sample size
+tau_k_dt[, weight := (n_0 + n_1) / N] # calculate weight of each bin
+
+# Calculate blocking estimator (weighted average of each bin's treatment effect).
+tau_k_dt[, tau_k_hat := mean_bw_1 - mean_bw_0] # difference within each bin
+tau_k_dt[, tau_weighted := tau_k_hat*weight] # weight each "bin effect"
+print(sum(tau_k_dt[,tau_weighted],na.rm = TRUE)) # sum up to find treatment effect and print
+```
+
+We calculate a treatment effect within each bin and then sum a weighted average of these within bin treatment effects to find our blocking estimator treatment effect estimate of about -223 grams.
 
 # Question 4
 Low birth weight births (less than 2,500 grams) are considered particularly undesirable since they comprise a large share of infant deaths. Redo question 3 using an indicator for low birth weight births as the outcome of interest. Interpret your findings.
+
+```{r}
+# Calculate blocking estimator (weighted average of each bin's treatment effect).
+tau_k_dt[, tau_k_hat := mean_low_1 - mean_low_0] # difference within each bin
+tau_k_dt[, tau_weighted := tau_k_hat*weight] # weight each "bin effect"
+print(sum(tau_k_dt[,tau_weighted],na.rm = TRUE)) # sum up to find treatment effect and print
+
+rm(N)
+rm(tau_k_dt)
+```
+
+We estimate that smoking causes babies to be about 4% more likely to be born weighing less than 2500g.
 
 # Question 5
 
