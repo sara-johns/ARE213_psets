@@ -23,17 +23,19 @@ rm(list = ls())
 
 # install.packages("tidyverse")
 # install.packages("MatchIt")
+# install.packages("lfe")
 
 # Load packages
 library(pacman)
 library(tidyverse)
 library(MatchIt)
+library(lfe)
 p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats)
 
 # Directory 
 # base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
-#base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
-base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
+base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+#base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 # base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
 # read data
@@ -449,20 +451,26 @@ By the Regression-CEF Theorem, if the CEF is linear, then the regression of $y_i
 
 ```{r}
 # the following code came from Arthur's tip on the Slack channel
-# when I try to run it though, it keeps running continuously
 
 saturated_data <- mom_dt %>%
+  # take a subset of the data with only the variables we are interested in
   select(dbrwt, tobacco, rectype, pldel3, cntocpop, stresfip, dmage, mrace3, 
          dmar, adequacy, csex, dplural) %>%
+  # combinations of the variables in X
   group_by(rectype, pldel3, cntocpop, stresfip, dmage, mrace3, dmar, adequacy, 
            csex, dplural) %>%
+  # give each group a unique id
   mutate(group = cur_group_id()) %>%
   ungroup()
 
-#the line below is the one that takes forever to run for me
-#reg <- lm(dbrwt ~ tobacco + factor(group), data=saturated_data)
+# the output (from running on Google Colab) is included below
+# the line below takes a long time to run, so is commented out
+
+# felm(dbrwt ~ tobacco + factor(group), saturated_data)
 
 ```
+
+![output](pset1b_Q5b_output.png)
 
 Add proof
 
