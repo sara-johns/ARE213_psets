@@ -514,11 +514,19 @@ So if the treatment effect of smoking on birthweight is independent of the covar
 (c)*Develop a weighted version of the exact matching estimator that estimates the same thing as the regression above (regardless of whether the treatment effect is independent of covariates). 
 
 \bigskip
-```{r}
-# useful documentation on page 9 https://r.iq.harvard.edu/docs/matchit/2.4-20/matchit.pdf
-# right now this is giving me no matched units
 
-```
+The following was discussed with and inspired by Abdou. Because we have exact matching, each treatment and control observation will belong to only one cell, where we define a cell $k$ as all observations for which $X_i = X_j\ \forall \ i, j$. Our weights need to account for within cell overlap of the treatment status.
+
+For $n_{ik} = |\{j: j \in k \ \& \ D_i = D_j\}| = |\{j: X_i = X_j \ \& \ D_i = D_j\}|$ being the number of observations with the same treatment status as $i$ in a given cell $k$, $D_{ik}$ being the treatment status of $i$ in cell $k$, and $\sigma_k$ the variance within a given cell $k$ of the treatment variable, we have
+
+$$w_{ik} = \dfrac{n_{ik}\sigma_k N_c}{\sum_{k=1}^K \sum_{i \in (D_i = c)} n_{ik}\sigma_k} \forall c \in 0,1$$
+
+This makes sense because we want to give 0 weight to observations with $\sigma_k=0$ because those cells will not have enough variation to give us the treatment effect for a given cell.
+
+We have $$\sum_{k=1}^K \ \sum_{i \in \{D_{ik} = c\}} w_{ik} = 1 \forall c \in \{0,1\}$$
+So our weighted version of the exact matching estimator that estimates the same thing as the regression above (regardless of whether the treatment effect is independent of covariates) is
+
+$$\tau_M = \frac{1}{N_T}\sum_{D_i = 1} y_{ik} w_{ik} - \frac{1}{N_C}\sum_{D_i = 0} y_{ik}w_{ik}$$
 
 \bigskip
 
