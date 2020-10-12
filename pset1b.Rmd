@@ -36,10 +36,10 @@ p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, g
 set.seed(1995)
 
 # Directory 
-base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
 #base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
 #base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
-# base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
+base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
 # read data
 mom_dt <- read.dta(paste0(base_directory, "ps1.dta"))
@@ -676,5 +676,9 @@ To calculate the Imbens standard errors, we use get.knn from the FNN to find the
 # Question 6
 
 Concisely and coherently summarize your overall results, providing some intuition. Write it like you would the conclusion of a paper. In this summary, describe whether you think your best estimate of the effects of smoking is credibly identified. State why or why not. 
+
+We have used various methods to estimate the effect of smoking on birth weight. We have assumed throughout that mothers with comparable observable characteristics have the same treated and untreated outcomes. These various estimates have, for the most part, been consistently around -220g (smoking reduces birthweight by 220g). One exception, however, is the matching estimator in Question 6, which produced a larger estimate with larger standard errors. Intuitively, this may be because the matching estimator must remove mothers from the sample who do not have a good match in the other group. If the treatment effect is a function of observable characteristics, then we may have removed some mothers with a smaller treatment effect from our sample, increasing our estimated treatment effect. 
+
+Despite the relatively small differences between different estimators, most of our estimates have been close to the others. All of these estimators, however, depend on the conditional independence assumption, which there is reason to doubt. Smoking could be correlated with the mother's background in ways that violate the conditional independence assumption (for example, it could be correlated with quality of mother's schooling or with familial support). In this case, it is important to remember that even the best estimator cannot make up for a lack of exogenous variation in treatment assignment.
 
 \bigskip
