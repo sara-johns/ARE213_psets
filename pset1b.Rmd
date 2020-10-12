@@ -28,15 +28,17 @@ rm(list = ls())
 # Load packages
 library(pacman)
 library(tidyverse)
-library(MatchIt)
 library(lfe)
 library(zoo)
-p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats)
+p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats, FNN, fastDummies)
+
+# set seed for replication
+set.seed(1995)
 
 # Directory 
-# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
 #base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
-base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
+#base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 # base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
 # read data
@@ -577,41 +579,67 @@ The sample size of the regression and the sample size of the matching estimator 
 
 \bigskip
 
-```{r cache = TRUE}
-#matches <- matchit(tobacco ~ rectype + pldel3 + cntocpop + stresfip + dmage + mrace3 + dmar + adequacy + csex + dplural, data=mom_dt, method="nearest")
-#matches.out.matrix <- matches$match.matrix #gives us a matrix of each observation and its nearest neighbor
-#matches.out <- as.data.table(matches.out.matrix)
-#setnames(matches.out, "1", "match") #rename match column
+```{r}
 
-#First set row number to be unique mother ID
-id <- rownames(saturated_data)
-saturated_data <- cbind(id = id, saturated_data)
-saturated_data[,id:=as.numeric(id)] #convert id from character to numeric
+# get treat/control data
+treat_data <- mom_dt[tobacco==1,c("rectype", "pldel3", "cntocpop", "stresfip", "dmage", "mrace3", "dmar", "adequacy", "csex", "dplural")]
+control_data <- mom_dt[tobacco==0,c("rectype", "pldel3", "cntocpop", "stresfip", "dmage", "mrace3", "dmar", "adequacy", "csex", "dplural")]
 
+treat_data <- dummy_cols(treat_data, select_columns = c("cntocpop", "stresfip", "mrace3", "dmar"))
+control_data <- dummy_cols(control_data, select_columns = c("cntocpop", "stresfip", "mrace3", "dmar"))
 
-#Also set row number to be unique mother ID in matches dataset
-#id2 <- row.names(matches.out.matrix)
-#matches.out <- cbind(id = id2, matches.out)
-#matches.out[,id := as.numeric(id)] #convert id from character to numeric
-#matches.out[,match := as.numeric(match)] #convert match from character to numeric
+treat_data <- treat_data[,!c("cntocpop", "stresfip", "mrace3", "dmar")]
+control_data <- control_data[,!c("cntocpop", "stresfip", "mrace3", "dmar")]
 
-#Merge match data to main dataset using id as link variable
-#saturated_data <- merge(saturated_data, matches.out, by = "id", all.x = TRUE)
+# get nearest neighbor match
+match1 <- get.knn(data=treat_data, k=1, algorithm = "kd_tree")
+match1dt <- data.table(sapply(match1,c))
+match1dt$id <- as.numeric(rownames(match1dt))
+
+match0 <- get.knn(data=control_data, k=1, algorithm = "kd_tree")
+match0dt <- data.table(sapply(match0,c))
+match0dt$id <- as.numeric(rownames(match0dt))
+
+# merge to original data
+saturated_data$main_id <- as.numeric(rownames(saturated_data))
+treat_ids <- saturated_data[tobacco==1, c("main_id")]
+treat_ids$id <- as.numeric(rownames(treat_ids))
+control_ids <- saturated_data[tobacco==0, c("main_id")]
+control_ids$id <- as.numeric(rownames(control_ids))
+
+# merge ids
+match1dt <- merge(match1dt, treat_ids, by = "id")
+match0dt <- merge(match0dt, control_ids, by = "id")
+
+# merge matched ids
+match1dt <- merge(match1dt, treat_ids, by.x="nn.index", by.y = "id")
+match0dt <- merge(match0dt, control_ids, by.x="nn.index", by.y = "id")
+matchdt <- rbind(match1dt, match0dt)
+
+matchdt <- matchdt[,4:5] 
+colnames(matchdt) <- c("main_id", "match_id")
+
+saturated_data <- merge(saturated_data, matchdt, by = "main_id")
+
 
 #Merge birthweight information of matched observations to main dataset
-#birthweights <- saturated_data[,.(match = id, match_dbrwt = dbrwt)] #create sub dataset of ID and birthweight
-#saturated_data <- merge(saturated_data, birthweights, by = "match")
+birthweights <- saturated_data[,.(match_id = main_id, match_dbrwt = dbrwt)] #create sub dataset of ID and birthweight
+saturated_data <- merge(saturated_data, birthweights, by = "match_id")
 
 # Calculate conditional variance
-#saturated_data[,diff := dbrwt - match_dbrwt]
-#saturated_data[,sigma_d := 0.5*diff^2]
-#cond_var <- sum((1/N_T^2)+(1/N_C^2)*saturated_data[!is.na(matching_weights), matching_weights*sigma_d])
+saturated_data[,diff := dbrwt - match_dbrwt]
+saturated_data[,sigma_d := 0.5*(diff^2)]
+cond_var <- sum(((1/N_T^2)+(1/N_C^2))*saturated_data[!is.na(matching_weights), matching_weights^2*sigma_d])
+cond_se <- sqrt(cond_var)
+
+
 ```
 
 We calculated the weights directly in part (d) above as:
 $$w_{ik} = \frac{n_{ik} \sigma_{k} N_c}{\sum_{k=1}^K \sum_{i \in (D_i = c)} n_{ik} \sigma_{k}} \forall c \in {0,1}$$
 
-To calculate the Imbens standard errors, we use MatchIt to find the nearest neighbor match for each observation with the same treatment status. We can then calculate the conditional variance using the formula above, which we find is equal to [insert answer here]. 
+To calculate the Imbens standard errors, we use get.knn from the FNN to find the nearest neighbor match for each observation with the same treatment status. We can then calculate the conditional variance using the formula above, which we find is equal to `r round(cond_var, 3)` which implies a standard error of `r round(cond_se, 3)`. This is much larger than the SE of the regression.
+
 
 # Question 6
 
