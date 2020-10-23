@@ -1,0 +1,58 @@
+---
+title: "ARE 213 Problem Set 2A"
+author: "Becky Cardinali, Yuen Ho, Sara Johns, and Jacob Lefler"
+date: "Due 10/26/2020"
+header-includes: 
+  - \usepackage{float}
+  - \floatplacement{figure}{H}
+  - \usepackage{amsmath}
+output: pdf_document
+fig_caption: yes
+geometry: margin=1.5cm
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#======================
+# Section 0: Set Up
+#======================
+
+# Clear workspace
+rm(list = ls())
+
+# Load packages
+library(pacman)
+library(zoo)
+library(haven)
+p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats, FNN, fastDummies)
+
+# set seed for replication
+set.seed(1995)
+
+# Directory 
+# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+#base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
+# base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
+
+# read data
+dt <- read_dta(paste0(base_directory, "traffic_safety2.dta"))
+
+```
+
+# Question 1
+
+Question 10.3 from Wooldridge: For $T=2$ consider the standard unobserved effects model: 
+\begin{equation}
+y_{it} = \alpha + x_{it}\beta + c_i + u_{it}
+\end{equation}
+Let $\hat{\beta}_{FE}$ and $\hat{\beta}_{FD}$ represent the fixed effects and first differences estimators respectively. 
+
+(a) Show that $\hat{\beta}_{FE}$ and $\hat{\beta}_{FD}$ are numerically identical. Hint: it may be easier to write $\hat{\beta}_{FE}$ as the "within estimator" rather than the fixed effects estimator. 
+
+(b) Show that the standard errors of $\hat{\beta}_{FE}$ and $\hat{\beta}_{FD}$ are numerically identical. If you wish, you may assume that $x_{it}$ is a scalar (i.e. there is only one regressor) and ignore any degree of freedome corrections. You are not clustering the standard errors in this problem. 
+
+# Question 2
+
+# Question 3
