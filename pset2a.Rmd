@@ -31,9 +31,9 @@ p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, g
 set.seed(1995)
 core.num <- (detectCores()/2)
 # Directory 
-base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
-# base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
-#base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
+# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+# base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 # base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
 # read data
@@ -51,7 +51,61 @@ Let $\hat{\beta}_{FE}$ and $\hat{\beta}_{FD}$ represent the fixed effects and fi
 
 (a) Show that $\hat{\beta}_{FE}$ and $\hat{\beta}_{FD}$ are numerically identical. Hint: it may be easier to write $\hat{\beta}_{FE}$ as the "within estimator" rather than the fixed effects estimator. 
 
-(b) Show that the standard errors of $\hat{\beta}_{FE}$ and $\hat{\beta}_{FD}$ are numerically identical. If you wish, you may assume that $x_{it}$ is a scalar (i.e. there is only one regressor) and ignore any degree of freedome corrections. You are not clustering the standard errors in this problem. 
+Define $\bar{Y}_i = \frac{1}{T}\sum_{t=1}^T Y_{it}$ and $\bar{X}_i = \frac{1}{T}\sum_{t=1}^T X_{it}$. Since $T=2$, we have $\bar{Y}_i = \frac{Y_{i1} + Y_{i2}}{2}$ and $\bar{X}_i = \frac{X_{i1} + X_{i2}}{2}$.  
+
+Let $\ddot{Y}_{it} = Y_{it} - \bar{Y_i}$, $\ddot{X}_{it} = X_{it} - \bar{X_i}$, and $\ddot{\epsilon}_{it} = \epsilon_{it} - \bar{\epsilon_i}$.
+
+The within estimator comes from running the following regression: $\ddot{Y}_{it} = \ddot{X}_{it}'\beta + \ddot{\epsilon}_{it}$. So the within estimator is given by $\hat{\beta}_{W} = (\ddot{X}_{it}'\ddot{X}_{it})^{-1}(\ddot{X}_{it}'\ddot{Y}_{it})$. As we know from Lecture Notes 3Ai (pg 12-13), the within estimator gives us estimates of $\beta$ that are numerically identical to those produced by the FE estimator. So we have $$\hat{\beta}_{FE} = \hat{\beta}_{W} = (\ddot{X}_{it}'\ddot{X}_{it})^{-1}(\ddot{X}_{it}'\ddot{Y}_{it})$$
+
+Since $T=2$ we can rewrite this as $$\hat{\beta}_{FE} = \left[ \begin{pmatrix} \ddot{X}_{i1}' & \ddot{X}_{i2}' \end{pmatrix} \begin{pmatrix} \ddot{X}_{i1} \\ {\ddot{X}_{i2}} \end{pmatrix} \right]^{-1} \begin{pmatrix} \ddot{X}_{i1}' &  \ddot{X}_{i2}' \end{pmatrix} \begin{pmatrix} \ddot{Y}_{i1} \\ \ddot{Y}_{i2}\end{pmatrix} = \begin{pmatrix} \ddot{X}_{i1}'\ddot{X}_{i1} + \ddot{X}_{i2}'\ddot{X}_{i2}  \end{pmatrix}^{-1} \begin{pmatrix} \ddot{X}_{i1}'\ddot{Y}_{i1} + \ddot{X}_{i2}'\ddot{Y}_{i2}  \end{pmatrix}$$
+
+Define $\Delta Y_{it} = Y_{it} - Y_{it-1}$, $\Delta X_{it} = X_{it} - X_{it-1}$, $\Delta \epsilon_{it} = \epsilon_{it} - \epsilon_{it-1}$. Then the regression $\Delta Y_{it} = \Delta X_{it}'\beta + \Delta \epsilon_{it}$ using data from time periods $2, ..., T$ yields the first differences estimator $\hat{\beta}_{FD} = (\Delta X_{it}'\Delta X_{it})^{-1}(\Delta X_{it}'\Delta Y_{it})$. Since we have $T=2$, $\Delta Y_{it} = Y_{i2} - Y_{i1}$, $\Delta X_{it} = X_{i2} - X_{i1}$, $\Delta \epsilon_{it} = \epsilon_{i2} - \epsilon_{i1}$
+
+From the definition above, we have $\ddot{X}_{i1} = X_{i1} - \bar{X_i}$. Substituting in for $\bar{X}_i$ and then using the definition of $\Delta X_{it}$ gives us
+
+$$\ddot{X}_{i1} = X_{i1} - \frac{X_{i1} + X_{i2}}{2} = \frac{X_{i1} - X_{i2}}{2} = \frac{-\Delta X_{it}}{2}$$
+Similarly, 
+$$\ddot{X}_{i2} = X_{i2} - \frac{X_{i1} + X_{i2}}{2} = \frac{X_{i2} - X_{i1}}{2} = \frac{\Delta X_{it}}{2}$$
+$$\ddot{Y}_{i1} = Y_{i1} - \frac{Y_{i1} + Y_{i2}}{2} = \frac{Y_{i1} - Y_{i2}}{2} = \frac{-\Delta Y_{it}}{2}$$
+
+$$\ddot{Y}_{i2} = Y_{i2} - \frac{Y_{i1} + Y_{i2}}{2} = \frac{Y_{i2} - Y_{i1}}{2} = \frac{\Delta Y_{it}}{2}$$
+Substituting these values into $\hat{\beta}_{FE}$ gives
+$$\hat{\beta}_{FE} = \left(\frac{-\Delta X'_{it}}{2}\frac{-\Delta X_{it}}{2} + \frac{\Delta X'_{it}}{2}\frac{\Delta X_{it}}{2}\right)^{-1} \left( \frac{-\Delta X'_{it}}{2}\frac{-\Delta Y_{it}}{2} + \frac{\Delta X'_{it}}{2}\frac{\Delta Y_{it}}{2}\right)$$ 
+$$= \left(\frac{\Delta X'_{it}\Delta X_{it}}{4} + \frac{\Delta X_{it}'\Delta X_{it}}{4}\right)^{-1} \left( \frac{\Delta X_{it}'\Delta Y_{it}}{4} + \frac{\Delta X_{it}'\Delta Y_{it}}{4}\right)$$
+$$= \left(\frac{\Delta X_{it}'\Delta X_{it}}{2}\right)^{-1} \left( \frac{\Delta X_{it}'\Delta Y_{it}}{2}\right) = (\frac{1}{2})^{-1}(\Delta X_{it}'\Delta X_{it})^{-1}(\frac{1}{2})(\Delta X_{it}'\Delta Y_{it})$$
+$$= (\Delta X_{it}'\Delta X_{it})^{-1}(\Delta X_{it}'\Delta Y_{it}) = \hat{\beta}_{FD}$$
+So for $T=2$, $\hat{\beta}_{FE}$ and $\hat{\beta}_{FD}$ are numerically identical.
+
+(b) Show that the standard errors of $\hat{\beta}_{FE}$ and $\hat{\beta}_{FD}$ are numerically identical. If you wish, you may assume that $x_{it}$ is a scalar (i.e. there is only one regressor) and ignore any degree of freedom corrections. You are not clustering the standard errors in this problem. 
+
+Ignoring any degree of freedom corrections, $Var(\hat{\beta}_{FE}) = \hat{\sigma}^2 (\ddot{X}'_{it}\ddot{X}_{it})^{-1}$ where $\hat{\sigma}^2$ is the sum of squared residuals.
+
+For $\hat{\beta}_{FE}$ and $T=1$, 
+$$\hat{\ddot{\epsilon}}_{i1} = \ddot{Y}_{i1} - \ddot{X}_{i1}\hat{\beta}_{FE} = \frac{-\Delta Y_{it}}{2} - \frac{-\Delta X_{it}}{2}\hat{\beta}_{FE}$$
+
+And since we showed in part (a) that $\hat{\beta}_{FE} = \hat{\beta}_{FD}$
+$$= \frac{-\Delta Y_{it}}{2} - \frac{-\Delta X_{it}}{2}\hat{\beta}_{FD} = (-\frac{1}{2})(\Delta Y_{it} - \Delta X_{it}\hat{\beta}_{FD}) = (-\frac{1}{2})\Delta \hat{\epsilon}_{it}$$
+So for $T=1$, $(\hat{\ddot{\epsilon}}_{i1})^2 = \frac{1}{4}(\Delta \hat{\epsilon}_{it})^2$
+
+Similarly, for $\hat{\beta}_{FE}$ and $T=2$, 
+$$\hat{\ddot{\epsilon}}_{i2} = \ddot{Y}_{i2} - \ddot{X}_{i2}\hat{\beta}_{FE} = \frac{\Delta Y_{it}}{2} - \frac{\Delta X_{it}}{2}\hat{\beta}_{FE}$$
+
+And since we showed in part (a) that $\hat{\beta}_{FE} = \hat{\beta}_{FD}$
+$$= \frac{\Delta Y_{it}}{2} - \frac{\Delta X_{it}}{2}\hat{\beta}_{FD} = (\frac{1}{2})(\Delta Y_{it} - \Delta X_{it}\hat{\beta}_{FD}) = (\frac{1}{2})\Delta \hat{\epsilon}_{it}$$
+So for $T=2$, $(\hat{\ddot{\epsilon}}_{i2})^2 = \frac{1}{4}(\Delta \hat{\epsilon}_{it})^2$
+
+Therefore, the sum of squared residuals $\hat{\sigma}^2$ for $\hat{\beta}_{FE}$ is $(\hat{\ddot{\epsilon}}_{i1})^2 + (\hat{\ddot{\epsilon}}_{i2})^2 = \frac{1}{2}(\Delta \hat{\epsilon}_{it})^2$
+
+Subsituting in for $\hat{\sigma}^2$ and $\ddot{X}_{it}$, we have $$Var(\hat{\beta}_{FE}) = \hat{\sigma}^2 (\ddot{X}'_{it}\ddot{X}_{it})^{-1} = \frac{1}{2}(\Delta \hat{\epsilon}_{it})^2 \left[ \begin{pmatrix} \ddot{X}_{i1}' & \ddot{X}_{i2}' \end{pmatrix} \begin{pmatrix} \ddot{X}_{i1} \\ {\ddot{X}_{i2}} \end{pmatrix} \right]^{-1}$$
+$$= \frac{1}{2}(\Delta \hat{\epsilon}_{it})^2\begin{pmatrix} \ddot{X}_{i1}'\ddot{X}_{i1} + \ddot{X}_{i2}'\ddot{X}_{i2}  \end{pmatrix}^{-1}$$
+
+$$= \frac{1}{2}(\Delta \hat{\epsilon}_{it})^2 \left(\frac{-\Delta X'_{it}}{2}\frac{-\Delta X_{it}}{2} + \frac{\Delta X'_{it}}{2}\frac{\Delta X_{it}}{2}\right)^{-1}$$
+
+$$=\frac{1}{2}(\Delta \hat{\epsilon}_{it})^2 \left(\frac{\Delta X'_{it}\Delta X_{it}}{4} + \frac{\Delta X_{it}'\Delta X_{it}}{4}\right)^{-1} = \frac{1}{2}(\Delta \hat{\epsilon}_{it})^2 \left(\frac{\Delta X_{it}'\Delta X_{it}}{2}\right)^{-1}$$
+$$=\frac{1}{2}(\Delta \hat{\epsilon}_{it})^2 (\frac{1}{2})^{-1}(\Delta X_{it}'\Delta X_{it})^{-1} = (\Delta \hat{\epsilon}_{it})^2 (\Delta X_{it}'\Delta X_{it})^{-1} = Var(\hat{\beta}_{FD})$$
+since $(\Delta \hat{\epsilon}_{it})^2$ is the sum of squared residuals for $\hat{\beta}_{FD}$ because there are only 2 time periods, so $\Delta \epsilon_{it} = \epsilon_{i2} - \epsilon_{i1}$ is the only residual to square and include in the sum. We found that the variances are equal, and the standard error is just the square root of the variance.
+
+So for $T=2$ and ignoring any degree of freedom corrections, the standard errors of $\hat{\beta}_{FE}$ and $\hat{\beta}_{FD}$ are numerically identical.
 
 # Question 2
 
