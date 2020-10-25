@@ -25,7 +25,7 @@ rm(list = ls())
 library(pacman)
 library(zoo)
 library(haven)
-p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats, FNN, fastDummies, fixest, parallel)
+p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats, FNN, fastDummies, fixest, parallel, plm, lmtest)
 
 # set seed for replication
 set.seed(1995)
@@ -57,7 +57,9 @@ Let $\hat{\beta}_{FE}$ and $\hat{\beta}_{FD}$ represent the fixed effects and fi
 
 # Question 3
 
-## A - 
+## a - 
+
+Run pooled bivariate OLS. Interpret. Add year fixed effects. Interpret. Add all covariates that you believe are appropriate. Think carefully about which covariates should be log transformed and which should enter in levels. What happens when you add these covariates? Why?
 
 ```{r}
 
@@ -80,18 +82,19 @@ summary(biv, se="standard")
 biv_yfe <- feols(ln_fat_pc ~ primary + secondary, fixef = "year", data=traffic)
 summary(biv_yfe, se = "standard")
 
-biv_yfe_cov <- feols(ln_fat_pc ~ primary + secondary + college + 
+biv_yfe_cov <- feols(ln_fat_pc ~ primary + college + 
                        beer + ln_unemploy + ln_totalvmt + ln_precip +
-                       ln_snow + rural_speed + urban_speed, fixef = c("year", "state"), data=traffic)
+                       ln_snow + rural_speed + urban_speed, fixef = "year", data=traffic)
 summary(biv_yfe_cov, se = "standard")
 
 ```
 
 
-## B - 
+## b - 
+
+Ignore omitted variables bias issues for the moment. Do you think the standard errors from above are right? Compute the Huber-White heteroskedasticity robust standard errors. Do they change much? Compute the clustered standard errors that are robust to within-state correlation. Do this using both the canned command and manually using the formulas we learned in class. Do the standard errors change much? Are you surprised? Interpret.
 
 ```{r}
-
 # b - white robust and clustered 
 
 # package command - heteroskedastic
@@ -143,8 +146,7 @@ biv_var <- c("primary", "secondary")
 biv_yfe_var <- c("primary", "secondary", colnames(traffic[,year_1982:year_2003]))
 biv_yfe_cov_var <- c("primary", "secondary", "college", "beer",
                      "ln_unemploy", "ln_totalvmt", "ln_precip", 
-                     "ln_snow", "rural_speed", "urban_speed", colnames(traffic[,year_1982:year_2003]), 
-                     colnames(traffic[,state_2:state_99]))
+                     "ln_snow", "rural_speed", "urban_speed", colnames(traffic[,year_1982:year_2003]))
 
 # Run regression
 xmat_biv <- as.matrix(cbind(1,select(traffic, all_of(biv_var))))
@@ -163,8 +165,11 @@ w_mid_biv_yfe <- white_middle(xmat_biv_yfe, ymat, beta_biv_yfe)
 w_mid_biv_yfe_cov <- white_middle(xmat_biv_yfe_cov, ymat, beta_biv_yfe_cov)
 # get standard errors
 white_biv <- robust.se(xmat_biv, w_mid_biv)
+white_biv
 white_biv_yfe <- robust.se(xmat_biv_yfe, w_mid_biv_yfe)
+white_biv_yfe[1:3]
 white_biv_yfe_cov <- robust.se(xmat_biv_yfe_cov, w_mid_biv_yfe_cov)
+white_biv_yfe_cov[1:11]
 
 # Clustered by state
 states <- as.vector(unique(traffic[,state]))
@@ -182,7 +187,52 @@ cl_mid_biv_yfe_cov_terms <- mclapply(states, cluster_middle, beta = beta_biv_yfe
 cl_mid_biv_yfe_cov <- Reduce('+', cl_mid_biv_yfe_cov_terms)
 
 cl_biv <- robust.se(xmat_biv, cl_mid_biv)
+cl_biv
 cl_biv_yfe <- robust.se(xmat_biv_yfe, cl_mid_biv_yfe)
+cl_biv_yfe[1:3]
 cl_biv_yfe_cov <- robust.se(xmat_biv_yfe_cov, cl_mid_biv_yfe_cov)
+cl_biv_yfe_cov[1:11]
+
+```
+
+## c -
+
+Compute the between estimator, both with and without covariates. Under what conditions will this give an unbiased estimate of the effect of primary seat belt laws on fatalities per capita? Do you believe those conditions are met? Are you concerned about the standard errors in this case?
+
+```{r}
+# c - between estimator with and without covariates
+traffic_bet <- traffic[, lapply(.SD, mean), by = "state"] # get means by state
+
+between <- feols(ln_fat_pc ~ primary + secondary, data=traffic_bet)
+summary(between, se="standard")
+between_cov <- feols(ln_fat_pc ~ primary + secondary + college + 
+                       beer + ln_unemploy + ln_totalvmt + ln_precip +
+                       ln_snow + rural_speed + urban_speed, data=traffic_bet)
+summary(between_cov, se = "standard")
+
+```
+
+## d - 
+
+Compute the RE estimator (including covariates). Under what conditions will this give an unbiased estimate of the effect of primary seat belt laws on fatalities per capita? What are its advantages or disadvantages as compared to pooled OLS?
+
+```{r}
+
+# d - random effects estimator
+random <- plm(ln_fat_pc ~ primary + secondary + college + 
+                beer + ln_unemploy + ln_totalvmt + ln_precip +
+                ln_snow + rural_speed + urban_speed, data=traffic, model="random")
+summary(random)
+
+```
+
+## e - 
+
+Do you think the standard errors from RE are right? Compute the clustered standard errors. Are they substantially different? If so, why? (i.e., what assumption(s) are being violated?)
+
+```{r}
+
+# e - clustered SEs
+coeftest(random, vcovHC(random, type="sss", cluster="group"))
 
 ```
