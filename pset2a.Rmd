@@ -25,15 +25,15 @@ rm(list = ls())
 library(pacman)
 library(zoo)
 library(haven)
-p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats, FNN, fastDummies, fixest, parallel, plm, lmtest)
+p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats, FNN, fastDummies, fixest, parallel, plm, lmtest, fixest)
 
 # set seed for replication
 set.seed(1995)
 core.num <- (detectCores()/2)
 # Directory 
 # base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
-base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
-# base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
+#base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 # base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
 # read data
@@ -49,7 +49,11 @@ y_{it} = \alpha + x_{it}\beta + c_i + u_{it}
 \end{equation}
 Let $\hat{\beta}_{FE}$ and $\hat{\beta}_{FD}$ represent the fixed effects and first differences estimators respectively. 
 
+\bigskip
+
 (a) Show that $\hat{\beta}_{FE}$ and $\hat{\beta}_{FD}$ are numerically identical. Hint: it may be easier to write $\hat{\beta}_{FE}$ as the "within estimator" rather than the fixed effects estimator. 
+
+\bigskip
 
 Define $\bar{Y}_i = \frac{1}{T}\sum_{t=1}^T Y_{it}$ and $\bar{X}_i = \frac{1}{T}\sum_{t=1}^T X_{it}$. Since $T=2$, we have $\bar{Y}_i = \frac{Y_{i1} + Y_{i2}}{2}$ and $\bar{X}_i = \frac{X_{i1} + X_{i2}}{2}$.  
 
@@ -76,7 +80,11 @@ $$= \left(\frac{\Delta X_{it}'\Delta X_{it}}{2}\right)^{-1} \left( \frac{\Delta 
 $$= (\Delta X_{it}'\Delta X_{it})^{-1}(\Delta X_{it}'\Delta Y_{it}) = \hat{\beta}_{FD}$$
 So for $T=2$, $\hat{\beta}_{FE}$ and $\hat{\beta}_{FD}$ are numerically identical.
 
+\bigskip
+
 (b) Show that the standard errors of $\hat{\beta}_{FE}$ and $\hat{\beta}_{FD}$ are numerically identical. If you wish, you may assume that $x_{it}$ is a scalar (i.e. there is only one regressor) and ignore any degree of freedom corrections. You are not clustering the standard errors in this problem. 
+
+\bigskip
 
 Ignoring any degree of freedom corrections, $Var(\hat{\beta}_{FE}) = \hat{\sigma}^2 (\ddot{X}'_{it}\ddot{X}_{it})^{-1}$ where $\hat{\sigma}^2$ is the sum of squared residuals.
 
@@ -111,13 +119,11 @@ So for $T=2$ and ignoring any degree of freedom corrections, the standard errors
 
 # Question 3
 
-## a - 
+(a) Run pooled bivariate OLS. Interpret. Add year fixed effects. Interpret. Add all covariates that you believe are appropriate. Think carefully about which covariates should be log transformed and which should enter in levels. What happens when you add these covariates? Why?
 
-Run pooled bivariate OLS. Interpret. Add year fixed effects. Interpret. Add all covariates that you believe are appropriate. Think carefully about which covariates should be log transformed and which should enter in levels. What happens when you add these covariates? Why?
+\bigskip
 
 ```{r}
-
-# a- Pooled bivariate OLS , yr FE, All covariates 
 
 # create y variable
 traffic[, ln_fat_pc := log((fatalities/population))]
@@ -129,41 +135,80 @@ traffic[,ln_snow := log(snow32+0.01)] # to avoid NA from zeroes
 # create dummies for FEs (to be used later)
 traffic <- dummy_cols(traffic, select_columns = c("year", "state"))
 
-# bivariate OLS
-biv <- feols(ln_fat_pc ~ primary + secondary, data=traffic)
+# Pooled bivariate OLS
+biv <- feols(ln_fat_pc ~ primary, data=traffic)
 summary(biv, se="standard")
 
-biv_yfe <- feols(ln_fat_pc ~ primary + secondary, fixef = "year", data=traffic)
-summary(biv_yfe, se = "standard")
+```
 
-biv_yfe_cov <- feols(ln_fat_pc ~ primary + college + 
+\bigskip
+
+A naive bivariate OLS estimate suggests that having primary belt laws is associated with a `r round(biv$coefficients[[2]]*(-100), 2)`% decrease in traffic fatalities per capita, ceteris paribus. Of course, we are likely omitting both observed and unobserved variables that affect selection into treatment (having primary belt laws), so this basic bivariate model simply gives us some descriptive information.  
+
+\bigskip
+
+```{r}
+# Pooled bivariate OLS with year fixed effects
+biv_yfe <- feols(ln_fat_pc ~ primary, fixef = "year", data=traffic)
+summary(biv_yfe, se = "standard")
+```
+
+\bigskip
+
+When we add year fixed effects to our pooled OLS model, we find that having primary belt laws is associated with a `r round(biv_yfe$coefficients[[1]]*(-100), 2)`% decrease in traffic fatalities per capita, ceteris paribus. That is, some of the relationship between primary belt laws and traffic fatalities that we found in our bivariate model above can actually be explained by aggregate trends over time, which we control for when we include year fixed effects.
+
+\bigskip
+
+```{r}
+# Pooled bivariate OLS with fixed effects and covariates
+biv_yfe_cov <- feols(ln_fat_pc ~ primary + secondary + college + 
                        beer + ln_unemploy + ln_totalvmt + ln_precip +
                        ln_snow + rural_speed + urban_speed, fixef = "year", data=traffic)
 summary(biv_yfe_cov, se = "standard")
 
 ```
 
+\bigskip
 
-## b - 
+Next we add covariates to our model, specifically secondary belt laws, percent college grads, per capita beer consumption, rural interstate speed limit, urban interstate speed limit, and logs of the unemployment rate, total vehicle miles travelled, percipitation, and snowfall. We decided to log those variables because they have a positively skewed distribution. 
 
-Ignore omitted variables bias issues for the moment. Do you think the standard errors from above are right? Compute the Huber-White heteroskedasticity robust standard errors. Do they change much? Compute the clustered standard errors that are robust to within-state correlation. Do this using both the canned command and manually using the formulas we learned in class. Do the standard errors change much? Are you surprised? Interpret.
+\bigskip
+
+With these additional covariates, our results indicate that having primary belt laws is associated with a `r round(biv_yfe_cov$coefficients[[1]]*(100), 2)`% increase in traffic fatalities per capita, ceteris paribus, which is not statistically significant. It seems unlikely that having primary belt laws would increase traffic fatalities, so it seems possible that our model suffers from omitted variable bias. For example, there may be state-specific, time-invariant characteristics which affect both the likelihood of having primary belt laws and traffic fatalities per capita. 
+
+\bigskip
+
+(b) Ignore omitted variables bias issues for the moment. Do you think the standard errors from above are right? Compute the Huber-White heteroskedasticity robust standard errors. Do they change much? Compute the clustered standard errors that are robust to within-state correlation. Do this using both the canned command and manually using the formulas we learned in class. Do the standard errors change much? Are you surprised? Interpret.
+
+\bigskip
+
+Our OLS standard errors above are only correct if we assume homoskedasticity and independence across observations. However, it seems likely that observations in different years within a given state will be positively correlated, even if we assume state-specific factors are independent across states. To account for heteroskedasticity we can calculate the Huber-White heteroskedasticity robust standard errors. To account for within-state correlation, we can calculate clustered standard errors at the state-level.
+
+\bigskip
 
 ```{r}
-# b - white robust and clustered 
-
-# package command - heteroskedastic
+# package command - heteroskedastic robust standard errors
 summary(biv, se = "white")
 summary(biv_yfe, se = "white")
 summary(biv_yfe_cov, se = "white")
 
-# package command - cluster
+# package command - clustered standard errors
 summary(biv, cluster  = traffic$state)
 summary(biv_yfe, cluster = traffic$state)
 summary(biv_yfe_cov, cluster = traffic$state)
 
-# write own commands
+```
 
-# will need to get beta matrix manually
+\bigskip
+
+Using the "canned" commands for calculating White-robust standard errors and clustered standard errors we find that our White-robust standard errors are generally slightly larger than our unadjusted OLS standard errors and that our clustered standard errors are larger than both the robust and unadjusted standard errors. We expect our clustered standard errors to be larger than our unclustered SEs the more we have intra-cluster correlation of regressors, the more observations we have per cluster, and the more correlated the errors are within-cluster. Intuitively, if errors are positively correlated within cluster then an additional observation in the cluster no longer provides a completely independent piece of new information. 
+
+\bigskip
+
+```{r}
+# Manually calculate White-robust and clustered standard errors
+
+# Manually obtain beta OLS matrix
 calc.beta <- function(xmat, ymat) {
   (solve(t(xmat)%*%xmat)) %*% (t(xmat)%*%ymat)
 }
@@ -196,8 +241,8 @@ cluster_middle <- function(i, beta, DT, yvar, xvars) {
 }
 
 # List of our variables for the three regressions
-biv_var <- c("primary", "secondary")
-biv_yfe_var <- c("primary", "secondary", colnames(traffic[,year_1982:year_2003]))
+biv_var <- c("primary")
+biv_yfe_var <- c("primary", colnames(traffic[,year_1982:year_2003]))
 biv_yfe_cov_var <- c("primary", "secondary", "college", "beer",
                      "ln_unemploy", "ln_totalvmt", "ln_precip", 
                      "ln_snow", "rural_speed", "urban_speed", colnames(traffic[,year_1982:year_2003]))
@@ -212,7 +257,7 @@ beta_biv <- calc.beta(xmat_biv, ymat)
 beta_biv_yfe <- calc.beta(xmat_biv_yfe, ymat)
 beta_biv_yfe_cov <- calc.beta(xmat_biv_yfe_cov, ymat)
 
-# White robust
+# Manually calculate White robust SEs
 # get middle terms
 w_mid_biv <- white_middle(xmat_biv, ymat, beta_biv)
 w_mid_biv_yfe <- white_middle(xmat_biv_yfe, ymat, beta_biv_yfe)
@@ -248,16 +293,20 @@ cl_biv_yfe_cov <- robust.se(xmat_biv_yfe_cov, cl_mid_biv_yfe_cov)
 cl_biv_yfe_cov[1:11]
 
 ```
+\bigskip
 
-## c -
+When we calculate the White-robust and clustered standard errors by hand they are quite similar to the standard errors calculated by the "canned" commands above. 
+\bigskip
 
-Compute the between estimator, both with and without covariates. Under what conditions will this give an unbiased estimate of the effect of primary seat belt laws on fatalities per capita? Do you believe those conditions are met? Are you concerned about the standard errors in this case?
+(c) Compute the between estimator, both with and without covariates. Under what conditions will this give an unbiased estimate of the effect of primary seat belt laws on fatalities per capita? Do you believe those conditions are met? Are you concerned about the standard errors in this case?
+
+\bigskip
 
 ```{r}
 # c - between estimator with and without covariates
 traffic_bet <- traffic[, lapply(.SD, mean), by = "state"] # get means by state
 
-between <- feols(ln_fat_pc ~ primary + secondary, data=traffic_bet)
+between <- feols(ln_fat_pc ~ primary, data=traffic_bet)
 summary(between, se="standard")
 between_cov <- feols(ln_fat_pc ~ primary + secondary + college + 
                        beer + ln_unemploy + ln_totalvmt + ln_precip +
@@ -265,10 +314,23 @@ between_cov <- feols(ln_fat_pc ~ primary + secondary + college +
 summary(between_cov, se = "standard")
 
 ```
+\bigskip
 
-## d - 
+Demeaning our data by state allows us to estimate the between estimator. Without covariates, our between estimator implies that having primary belt laws is associated with a `r round(between$coefficients[[2]]*(-100), 2)`% decrease in traffic fatalities per capita, ceteris paribus. With covariates, our between estimator implies that having primary belt laws is associated with a `r round(between_cov$coefficients[[2]]*(100), 2)`% increase in traffic fatalities per capita, ceteris paribus. 
 
-Compute the RE estimator (including covariates). Under what conditions will this give an unbiased estimate of the effect of primary seat belt laws on fatalities per capita? What are its advantages or disadvantages as compared to pooled OLS?
+\bigskip
+
+Under the strict exogeneity assumption, our between estimator gives us an unbiased estimate of the effect of primary seat belt laws on fatalities per capita, that is under the strict exogeneity assumption, $E[\ddot{\epsilon}_{it} | \ddot{X}_{it}] = 0$ where $\ddot{X}_{it} = X_{it} - \bar{X_i}$, and $\ddot{\epsilon}_{it} = \epsilon_{it} - \bar{\epsilon_i}$. The strict exogeneity assumption implies that the error term is uncorrelated with all past, present, and future values of the control variables, which is quite a strong assumption. In our model, this assumption is unlikely to hold if, for example, past snowfall affects current traffic fatalities per capita because in areas with lower past snowfall drivers are less experienced with driving safely during adverse weather conditions and are more likely to get into serious traffic accidents as a result. 
+
+\bigskip
+
+Note that our OLS standard errors from the between estimator are incorrect because $\ddot{\epsilon}_{it} = \epsilon_{it} - \bar{\epsilon_i}$ will be correlated across different observations within the same unit. However, we can obtain the correct standard errors by multiplying our OLS standard errors by $\sqrt{T / (T-1)}$.
+
+\bigskip
+
+(d) Compute the RE estimator (including covariates). Under what conditions will this give an unbiased estimate of the effect of primary seat belt laws on fatalities per capita? What are its advantages or disadvantages as compared to pooled OLS?
+
+\bigskip
 
 ```{r}
 
@@ -280,9 +342,16 @@ summary(random)
 
 ```
 
-## e - 
+\bigskip
+Our random effects estimator implies that having primary belt laws is associated with a `r round(random$coefficients[[2]]*(-100), 2)`% decrease in traffic fatalities per capita, ceteris paribus. Under the strict exogeneity assumption and the uncorrelated effects assumptions, that is the state-specific effect is uncorrelated with the regressors, the RE estimator is consistent. However if the uncorrelated effects assumption is violated, then our RE estimator will be biased. The benefit of the RE estimator is that if we can model the heteroskedasticity correctly it will be more efficient than pooled OLS. However, in order for the RE error structure to be correct, we need to assume that all residuals within a cluster are equally correlated with each other, which may not hold in practice. If this assumption does not hold, our RE estimator can still be consistent but may no longer be more efficient than OLS. 
 
-Do you think the standard errors from RE are right? Compute the clustered standard errors. Are they substantially different? If so, why? (i.e., what assumption(s) are being violated?)
+\bigskip
+
+(e) Do you think the standard errors from RE are right? Compute the clustered standard errors. Are they substantially different? If so, why? (i.e., what assumption(s) are being violated?)
+
+\bigskip
+
+As discussed above, the standard errors from our RE estimator above are only correct if we assume that all residuals within a cluster are equally correlated with each other, that is if we assume that the correlation between different observations for the same unit is always the same, regardless of how far apart in time they are. If this assumption is violated then our RE standard errors will be wrong. Indeed, when we compute the clustered SEs below they are generally larger than our RE standard errors, implying that our assumption that all residuals within a cluster are equally correlated with each other likely does not hold. 
 
 ```{r}
 
@@ -290,3 +359,4 @@ Do you think the standard errors from RE are right? Compute the clustered standa
 coeftest(random, vcovHC(random, type="sss", cluster="group"))
 
 ```
+\bigskip
