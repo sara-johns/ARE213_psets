@@ -25,19 +25,19 @@ rm(list = ls())
 library(pacman)
 library(zoo)
 library(haven)
-p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats, FNN, fastDummies)
+p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats, FNN, fastDummies, fixest, parallel)
 
 # set seed for replication
 set.seed(1995)
-
+core.num <- (detectCores()/2)
 # Directory 
-# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
-base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+# base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
 #base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 # base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
 # read data
-dt <- read_dta(paste0(base_directory, "traffic_safety2.dta"))
+traffic <- as.data.table(read_dta(paste0(base_directory, "traffic_safety2.dta")))
 
 ```
 
@@ -56,3 +56,133 @@ Let $\hat{\beta}_{FE}$ and $\hat{\beta}_{FD}$ represent the fixed effects and fi
 # Question 2
 
 # Question 3
+
+## A - 
+
+```{r}
+
+# a- Pooled bivariate OLS , yr FE, All covariates 
+
+# create y variable
+traffic[, ln_fat_pc := log((fatalities/population))]
+# log covariates
+traffic[,ln_unemploy := log(unemploy)]
+traffic[,ln_totalvmt := log(totalvmt)]
+traffic[,ln_precip := log(precip)]
+traffic[,ln_snow := log(snow32+0.01)] # to avoid NA from zeroes
+# create dummies for FEs (to be used later)
+traffic <- dummy_cols(traffic, select_columns = c("year", "state"))
+
+# bivariate OLS
+biv <- feols(ln_fat_pc ~ primary + secondary, data=traffic)
+summary(biv, se="standard")
+
+biv_yfe <- feols(ln_fat_pc ~ primary + secondary, fixef = "year", data=traffic)
+summary(biv_yfe, se = "standard")
+
+biv_yfe_cov <- feols(ln_fat_pc ~ primary + secondary + college + 
+                       beer + ln_unemploy + ln_totalvmt + ln_precip +
+                       ln_snow + rural_speed + urban_speed, fixef = c("year", "state"), data=traffic)
+summary(biv_yfe_cov, se = "standard")
+
+```
+
+
+## B - 
+
+```{r}
+
+# b - white robust and clustered 
+
+# package command - heteroskedastic
+summary(biv, se = "white")
+summary(biv_yfe, se = "white")
+summary(biv_yfe_cov, se = "white")
+
+# package command - cluster
+summary(biv, cluster  = traffic$state)
+summary(biv_yfe, cluster = traffic$state)
+summary(biv_yfe_cov, cluster = traffic$state)
+
+# write own commands
+
+# will need to get beta matrix manually
+calc.beta <- function(xmat, ymat) {
+  (solve(t(xmat)%*%xmat)) %*% (t(xmat)%*%ymat)
+}
+
+white_middle <- function(xmat, ymat, beta) {
+  residsq <- diag(as.vector((ymat - xmat %*% beta)^2))
+  mid <- (t(xmat)%*%residsq%*%xmat)
+  return(mid)
+}
+
+robust.se <- function(xmat, middle) {
+  
+  var.robust <- solve(t(xmat)%*%xmat) %*% middle %*% solve(t(xmat)%*%xmat)
+  
+  se <- sqrt(diag(var.robust))
+  
+  return(se)
+}
+
+cluster_middle <- function(i, beta, DT, yvar, xvars) {
+  
+  state.xmat <- as.matrix(cbind(1,select(DT[state == i,], xvars)))
+  state.ymat <- as.matrix(select(DT[state == i,], yvar))
+  
+  resid <- as.vector(state.ymat - state.xmat %*% beta)
+  
+  middle.term <- t(state.xmat) %*% resid %*% t(resid) %*% state.xmat
+  
+  return(middle.term)
+}
+
+# List of our variables for the three regressions
+biv_var <- c("primary", "secondary")
+biv_yfe_var <- c("primary", "secondary", colnames(traffic[,year_1982:year_2003]))
+biv_yfe_cov_var <- c("primary", "secondary", "college", "beer",
+                     "ln_unemploy", "ln_totalvmt", "ln_precip", 
+                     "ln_snow", "rural_speed", "urban_speed", colnames(traffic[,year_1982:year_2003]), 
+                     colnames(traffic[,state_2:state_99]))
+
+# Run regression
+xmat_biv <- as.matrix(cbind(1,select(traffic, all_of(biv_var))))
+xmat_biv_yfe <- as.matrix(cbind(1, select(traffic, all_of(biv_yfe_var))))
+xmat_biv_yfe_cov <- as.matrix(cbind(1, select(traffic, all_of(biv_yfe_cov_var))))
+ymat <- as.matrix(select(traffic, ln_fat_pc))
+
+beta_biv <- calc.beta(xmat_biv, ymat)
+beta_biv_yfe <- calc.beta(xmat_biv_yfe, ymat)
+beta_biv_yfe_cov <- calc.beta(xmat_biv_yfe_cov, ymat)
+
+# White robust
+# get middle terms
+w_mid_biv <- white_middle(xmat_biv, ymat, beta_biv)
+w_mid_biv_yfe <- white_middle(xmat_biv_yfe, ymat, beta_biv_yfe)
+w_mid_biv_yfe_cov <- white_middle(xmat_biv_yfe_cov, ymat, beta_biv_yfe_cov)
+# get standard errors
+white_biv <- robust.se(xmat_biv, w_mid_biv)
+white_biv_yfe <- robust.se(xmat_biv_yfe, w_mid_biv_yfe)
+white_biv_yfe_cov <- robust.se(xmat_biv_yfe_cov, w_mid_biv_yfe_cov)
+
+# Clustered by state
+states <- as.vector(unique(traffic[,state]))
+
+cl_mid_biv_terms <- mclapply(states, cluster_middle, beta = beta_biv, DT = traffic, 
+                             yvar="ln_fat_pc", xvars=biv_var, mc.cores = core.num)
+cl_mid_biv <- Reduce('+', cl_mid_biv_terms)
+
+cl_mid_biv_yfe_terms <- mclapply(states, cluster_middle, beta = beta_biv_yfe, DT = traffic, 
+                                 yvar="ln_fat_pc", xvars=biv_yfe_var, mc.cores = core.num)
+cl_mid_biv_yfe <- Reduce('+', cl_mid_biv_yfe_terms)
+
+cl_mid_biv_yfe_cov_terms <- mclapply(states, cluster_middle, beta = beta_biv_yfe_cov, DT = traffic, 
+                                     yvar="ln_fat_pc", xvars=biv_yfe_cov_var, mc.cores = core.num)
+cl_mid_biv_yfe_cov <- Reduce('+', cl_mid_biv_yfe_cov_terms)
+
+cl_biv <- robust.se(xmat_biv, cl_mid_biv)
+cl_biv_yfe <- robust.se(xmat_biv_yfe, cl_mid_biv_yfe)
+cl_biv_yfe_cov <- robust.se(xmat_biv_yfe_cov, cl_mid_biv_yfe_cov)
+
+```
