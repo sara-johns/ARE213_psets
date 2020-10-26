@@ -304,16 +304,16 @@ cl_biv_adj <- (length(states)/(length(states)-1))*((nrow(xmat_biv)-1)/(nrow(xmat
 cl_biv_yfe_adj <- (length(states)/(length(states)-1))*((nrow(xmat_biv_yfe)-1)/(nrow(xmat_biv_yfe)- ncol(xmat_biv_yfe)))
 cl_biv_yfe_cov_adj <- (length(states)/(length(states)-1))*((nrow(xmat_biv_yfe_cov)-1)/(nrow(xmat_biv_yfe_cov)- ncol(xmat_biv_yfe_cov)))
 
-cl_mid_biv_terms <- mclapply(states, cluster_middle, beta = beta_biv, DT = traffic, 
-                             yvar="ln_fat_pc", xvars=biv_var, mc.cores = core.num)
+cl_mid_biv_terms <- lapply(states, cluster_middle, beta = beta_biv, DT = traffic, 
+                             yvar="ln_fat_pc", xvars=biv_var)
 cl_mid_biv <- Reduce('+', cl_mid_biv_terms)
 
-cl_mid_biv_yfe_terms <- mclapply(states, cluster_middle, beta = beta_biv_yfe, DT = traffic, 
-                                 yvar="ln_fat_pc", xvars=biv_yfe_var, mc.cores = core.num)
+cl_mid_biv_yfe_terms <- lapply(states, cluster_middle, beta = beta_biv_yfe, DT = traffic, 
+                                 yvar="ln_fat_pc", xvars=biv_yfe_var)
 cl_mid_biv_yfe <- Reduce('+', cl_mid_biv_yfe_terms)
 
-cl_mid_biv_yfe_cov_terms <- mclapply(states, cluster_middle, beta = beta_biv_yfe_cov, DT = traffic, 
-                                     yvar="ln_fat_pc", xvars=biv_yfe_cov_var, mc.cores = core.num)
+cl_mid_biv_yfe_cov_terms <- lapply(states, cluster_middle, beta = beta_biv_yfe_cov, DT = traffic, 
+                                     yvar="ln_fat_pc", xvars=biv_yfe_cov_var)
 cl_mid_biv_yfe_cov <- Reduce('+', cl_mid_biv_yfe_cov_terms)
 
 cl_biv <- robust.se(xmat_biv, cl_mid_biv, cl_biv_adj)
