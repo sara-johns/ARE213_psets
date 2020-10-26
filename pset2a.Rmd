@@ -124,7 +124,21 @@ First, we let $R$ be the matrix of unit dummy variables, similar to the one defi
 
 The FWL theorem, however, says that we can obtain the same coefficients from performing three simpler regressions. The first step is to regress $y_{it}$, $X_{it}$ and $R_{it}$ on $Q_{it}$ and obtain the residuals. This amounts to subtracting off the mean of each variable within each time period $t$. Define $\tilde{y}_{it} = y_{it} - \bar{y}_t$ where $\bar{y}_t := \frac{1}{T}\sum_t y_{it}$, and define $\tilde{X}_{it}$ and $\tilde{R}_{it}$ analogously.
 
-Note that $\tilde{R}_{it} = $
+Note that
+$$
+\tilde{R}_{it} = R_{it} - 
+\begin{bmatrix}
+0 \\ 1/N \\ \vdots \\ 1/N
+\end{bmatrix} = R_{it} - \bar{R}_t
+$$
+In the second step, we regress $\tilde{y}_{it}$ and $\tilde{X}_{it}$ on $\tilde{R}_{it}$ and obtain the residuals, $\ddot{y}_{it}$ and $\ddot{X}_{it}$. The FWL theorem then guarentees that a regression of $\ddot{y}_{it}$ on $\ddot{X}_{it}$ will yield the fixed effects estimate of $\beta$. 
+In what sense is the second regression a within estimator? Note that $\bar{R}_t$ is a constant, so we are substracting a constant off of a set of variables. We can recall from introductory econometrics that substracting a constant from a variable will not change the estimated relationship between the dependent and independent variables.
+
+There is a key difference between this second regression and a one-step within estimator: we had to drop the first dummy variable for unit 1 (or whichever unit we chose). Thus, this second regression is equivalent to regressing $\tilde{y}_{it}$ and $\tilde{X}_{it}$ on ${R}_{it}$ and a constant.
+
+
+
+
 
 # Question 3
 
