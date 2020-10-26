@@ -360,3 +360,80 @@ coeftest(random, vcovHC(random, type="sss", cluster="group"))
 
 ```
 \bigskip
+
+(f) Compute the FE estimator using only primary and year fixed effects as the covariates. Compute the normal standard errors and the clustered standard errors. If they are different, why? 
+
+\bigskip
+
+```{r}
+fixed <- plm(ln_fat_pc ~ primary, data = traffic, index = c("state", "year"), model = "within")
+summary(fixed)
+coeftest(fixed, vcov = vcovHC(fixed, type = "sss", cluster = "group"))
+```
+
+\bigskip
+
+Our FE estimator implies that having primary belt laws is associated with `r round(fixed$coefficients[[1]]*(-100), 2)`% decrease in traffic fatalities per capita, ceteris paribus. When we compute clustered standard errors they are almost double the size of our normal standard errors. As discussed in part b above, clustered SEs will be larger than unclustered SEs the more we have intra-cluster correlation of regressors, the more observations we have per cluster, and the more correlated the errors are within-cluster. 
+
+\bigskip
+
+(g) Add the same range of covariates to the FE estimator that you did to the OLS estimator. Are the FE estimates more or less stable than the OLS estimates? Why?
+
+\bigskip
+
+```{r}
+fixed_cov <- plm(ln_fat_pc ~ primary + secondary + college + 
+                beer + ln_unemploy + ln_totalvmt + ln_precip +
+                ln_snow + rural_speed + urban_speed, data = traffic, index = c("state", "year"), model = "within")
+summary(fixed_cov)
+coeftest(fixed_cov, vcov = vcovHC(fixed, type = "sss", cluster = "group"))
+```
+\bigskip
+
+When we add our full set of covariates to the FE estimator we find that having primary belt laws is associated with `r round(fixed_cov$coefficients[[1]]*(-100), 2)`% decrease in traffic fatalities per capita, ceteris paribus, which is statistically significant at the 1% level. These results are more stable than our OLS estimates in part a above because the sign is now in the expected direction and the effect is measured much more precisely. Thus it seems likely that our earlier OLS model suffered from omitted variable bias, namely from omitting state-specific effects, which we control for in our FE model. 
+
+\bigskip
+
+(h) Estimate a first-difference estimator, a 5-year differences estimator, and a long differences estimator, including year fixed effects (when feasible) and the appropriate covariates in each case. Briefly describe the pattern that emerges from the three differencing estimates. Where doe sthe FE estimate fall in this pattern? Are you surprised?
+
+\bigskip
+
+```{r}
+## First Differences Estimator
+# Create first-differenced variables
+setkey(traffic, state)
+# lists of differenced vars
+cols <- c("ln_fat_pc", "primary", "secondary", "college", "beer", "ln_unemploy", "ln_totalvmt", "ln_precip", "ln_snow", "rural_speed", "urban_speed")
+fd_cols <- c("ln_fat_pc_fd", "primary_fd", "secondary_fd", "college_fd", "beer_fd", "ln_unemploy_fd", "ln_totalvmt_fd", "ln_precip_fd", "ln_snow_fd", "rural_speed_fd", "urban_speed_fd")
+fived_cols <- c("ln_fat_pc_fived", "primary_fived", "secondary_fived", "college_fived", "beer_fived", "ln_unemploy_fived", "ln_totalvmt_fived", "ln_precip_fived", "ln_snow_fived", "rural_speed_fived", "urban_speed_fived")
+ld_cols <- c("ln_fat_pc_ld", "primary_ld", "secondary_ld", "college_ld", "beer_ld", "ln_unemploy_ld", "ln_totalvmt_ld", "ln_precip_ld", "ln_snow_ld", "rural_speed_ld", "urban_speed_ld")
+
+traffic[,c(fd_cols) := lapply(.SD, function(x){c(NA, diff(x, lag = 1))}), .SDcols = c(cols), by = state]
+traffic[,c(fived_cols) := lapply(.SD, function(x){c(NA, NA, NA, NA, NA, diff(x, lag = 5))}), .SDcols = c(cols), by = state]
+traffic[,c(ld_cols) := lapply(.SD, function(x){c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, diff(x, lag = 22))}), .SDcols = c(cols), by = state]
+
+# Estimate first-differenced estimator with year FEs and covariates
+fd <- feols(ln_fat_pc_fd ~ primary_fd + secondary_fd + college_fd + beer_fd + ln_unemploy_fd + ln_totalvmt_fd + ln_precip_fd + ln_snow_fd + rural_speed_fd + urban_speed_fd, fixef = "year", data = traffic[year > 1981])
+summary(fd, se = "standard")
+
+# Estimate 5-year differences estimator with year FEs and covariates
+fived <- feols(ln_fat_pc_fived ~ primary_fived + secondary_fived + college_fived + beer_fived + ln_unemploy_fived + ln_totalvmt_fived + ln_precip_fived + ln_snow_fived + rural_speed_fived + urban_speed_fived, fixef = "year", data = traffic[year > 1985])
+summary(fived, se = "standard")
+
+# Estimate long differences estimator with covariates
+ld <- lm(ln_fat_pc_ld ~ primary_ld + secondary_ld + college_ld + beer_ld + ln_unemploy_ld + ln_totalvmt_ld + ln_precip_ld + ln_snow_ld + rural_speed_ld + urban_speed_ld -1, data = traffic[year == 2003])
+summary(ld) 
+
+```
+\bigskip
+
+(i) Make the case that the first-differences estimate is superior to the 5-year or long differences estimates.
+
+\bigskip
+
+\bigskip
+
+(j) Make the case that the 5-year or long differences estimates are superior to the first-differences estimate. 
+
+\bigskip
+
