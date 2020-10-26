@@ -144,9 +144,15 @@ Intuition: a two-way fixed effects estimator takes out the variation common to a
 
 (c)
 
-In the case of unbalanced panel data, 
-
-
+In the case of unbalanced panel data, we no longer have the same expression for $\tilde{R}_{it}$ after regressing $y_{it}$, $X_{it}$ and $R_{it}$ on $Q_{it}$. Start by defining $A_t$ to be the set of units $i$ that are observed at time $t$. Then define $N_t$ to be the cardinality of $A_t$ (the number of observations observed at time $t$). We find that
+$$
+\tilde{R}_{it} = R_{it} - \bar{R}_t
+$$
+but now $\bar{R}_t$ is not constant across $t$. Instead,
+$$
+\bar{R}_t = \frac{1}{N_t} \sum_{i \in A_t} R_{it}
+$$
+Note, however, that this does not affect the logic from part (a). In particular, in the second within transformation, we are regressing on $R_{it} - \bar{R}_t$ and $\bar{R}_t$ is constant across $i$ which is the relevent dimension. Thus, the unbalancedness does not affect our ability to calculate the fixed effects estimator with two within transformations.
 
 # Question 3
 
