@@ -29,11 +29,12 @@ p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, g
 
 # set seed for replication
 set.seed(1995)
+# for mclapply
 core.num <- (detectCores()/2)
 # Directory 
-# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
 #base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
-base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
+# base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 # base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
 # read data
@@ -219,9 +220,9 @@ white_middle <- function(xmat, ymat, beta) {
   return(mid)
 }
 
-robust.se <- function(xmat, middle) {
+robust.se <- function(xmat, middle, adj) {
   
-  var.robust <- solve(t(xmat)%*%xmat) %*% middle %*% solve(t(xmat)%*%xmat)
+  var.robust <- adj * (solve(t(xmat)%*%xmat) %*% middle %*% solve(t(xmat)%*%xmat))
   
   se <- sqrt(diag(var.robust))
   
@@ -262,16 +263,24 @@ beta_biv_yfe_cov <- calc.beta(xmat_biv_yfe_cov, ymat)
 w_mid_biv <- white_middle(xmat_biv, ymat, beta_biv)
 w_mid_biv_yfe <- white_middle(xmat_biv_yfe, ymat, beta_biv_yfe)
 w_mid_biv_yfe_cov <- white_middle(xmat_biv_yfe_cov, ymat, beta_biv_yfe_cov)
+# adjustment factor (so that it matches HC1)
+white_biv_adj <- nrow(xmat_biv)/(nrow(xmat_biv)- ncol(xmat_biv))
+white_biv_yfe_adj <- nrow(xmat_biv_yfe)/(nrow(xmat_biv_yfe)- ncol(xmat_biv_yfe))
+white_biv_yfe_cov_adj <- nrow(xmat_biv_yfe_cov)/(nrow(xmat_biv_yfe_cov)- ncol(xmat_biv_yfe_cov))
 # get standard errors
-white_biv <- robust.se(xmat_biv, w_mid_biv)
+white_biv <- robust.se(xmat_biv, w_mid_biv, white_biv_adj)
 white_biv
-white_biv_yfe <- robust.se(xmat_biv_yfe, w_mid_biv_yfe)
-white_biv_yfe[1:3]
-white_biv_yfe_cov <- robust.se(xmat_biv_yfe_cov, w_mid_biv_yfe_cov)
+white_biv_yfe <- robust.se(xmat_biv_yfe, w_mid_biv_yfe, white_biv_yfe_adj)
+white_biv_yfe[1:2]
+white_biv_yfe_cov <- robust.se(xmat_biv_yfe_cov, w_mid_biv_yfe_cov, white_biv_yfe_cov_adj)
 white_biv_yfe_cov[1:11]
 
 # Clustered by state
-states <- as.vector(unique(traffic[,state]))
+states <- as.vector(unique(traffic[,state])) # list of states
+# adjustment factor (from section)
+cl_biv_adj <- (length(states)/(length(states)-1))*((nrow(xmat_biv)-1)/(nrow(xmat_biv)- ncol(xmat_biv)))
+cl_biv_yfe_adj <- (length(states)/(length(states)-1))*((nrow(xmat_biv_yfe)-1)/(nrow(xmat_biv_yfe)- ncol(xmat_biv_yfe)))
+cl_biv_yfe_cov_adj <- (length(states)/(length(states)-1))*((nrow(xmat_biv_yfe_cov)-1)/(nrow(xmat_biv_yfe_cov)- ncol(xmat_biv_yfe_cov)))
 
 cl_mid_biv_terms <- mclapply(states, cluster_middle, beta = beta_biv, DT = traffic, 
                              yvar="ln_fat_pc", xvars=biv_var, mc.cores = core.num)
@@ -285,17 +294,18 @@ cl_mid_biv_yfe_cov_terms <- mclapply(states, cluster_middle, beta = beta_biv_yfe
                                      yvar="ln_fat_pc", xvars=biv_yfe_cov_var, mc.cores = core.num)
 cl_mid_biv_yfe_cov <- Reduce('+', cl_mid_biv_yfe_cov_terms)
 
-cl_biv <- robust.se(xmat_biv, cl_mid_biv)
+cl_biv <- robust.se(xmat_biv, cl_mid_biv, cl_biv_adj)
 cl_biv
-cl_biv_yfe <- robust.se(xmat_biv_yfe, cl_mid_biv_yfe)
-cl_biv_yfe[1:3]
-cl_biv_yfe_cov <- robust.se(xmat_biv_yfe_cov, cl_mid_biv_yfe_cov)
+cl_biv_yfe <- robust.se(xmat_biv_yfe, cl_mid_biv_yfe, cl_biv_yfe_adj)
+cl_biv_yfe[1:2]
+cl_biv_yfe_cov <- robust.se(xmat_biv_yfe_cov, cl_mid_biv_yfe_cov, cl_biv_yfe_cov_adj)
 cl_biv_yfe_cov[1:11]
 
 ```
 \bigskip
 
-When we calculate the White-robust and clustered standard errors by hand they are quite similar to the standard errors calculated by the "canned" commands above. 
+When we calculate the White-robust and clustered standard errors by hand they are the same as the standard errors calculated by the "canned" commands above. We added adjustments to ensure of this. The White standard errors in the canned command are 'HC1' and use an adjustment factor of $\frac{N}{N-K}$. The clustered standard errors use an adjustment factor (also in the section notes) of $\frac{C}{C-1}\frac{N-1}{N-K}$. 
+
 \bigskip
 
 (c) Compute the between estimator, both with and without covariates. Under what conditions will this give an unbiased estimate of the effect of primary seat belt laws on fatalities per capita? Do you believe those conditions are met? Are you concerned about the standard errors in this case?
@@ -356,7 +366,7 @@ As discussed above, the standard errors from our RE estimator above are only cor
 ```{r}
 
 # e - clustered SEs
-coeftest(random, vcovHC(random, type="sss", cluster="group"))
+coeftest(random, vcovHC(random, type="HC1", cluster="group"))
 
 ```
 \bigskip
@@ -366,9 +376,9 @@ coeftest(random, vcovHC(random, type="sss", cluster="group"))
 \bigskip
 
 ```{r}
-fixed <- plm(ln_fat_pc ~ primary, data = traffic, index = c("state", "year"), model = "within")
+fixed <- plm(ln_fat_pc ~ primary, data = traffic, effect="twoways", index = c("state", "year"), model = "within")
 summary(fixed)
-coeftest(fixed, vcov = vcovHC(fixed, type = "sss", cluster = "group"))
+coeftest(fixed, vcov = vcovHC(fixed, type = "HC1", cluster = "group"))
 ```
 
 \bigskip
@@ -384,9 +394,9 @@ Our FE estimator implies that having primary belt laws is associated with `r rou
 ```{r}
 fixed_cov <- plm(ln_fat_pc ~ primary + secondary + college + 
                 beer + ln_unemploy + ln_totalvmt + ln_precip +
-                ln_snow + rural_speed + urban_speed, data = traffic, index = c("state", "year"), model = "within")
+                ln_snow + rural_speed + urban_speed, data = traffic, effect="twoways", index = c("state", "year"), model = "within")
 summary(fixed_cov)
-coeftest(fixed_cov, vcov = vcovHC(fixed, type = "sss", cluster = "group"))
+coeftest(fixed_cov, vcov = vcovHC(fixed, type = "HC1", cluster = "group"))
 ```
 \bigskip
 
@@ -394,9 +404,11 @@ When we add our full set of covariates to the FE estimator we find that having p
 
 \bigskip
 
-(h) Estimate a first-difference estimator, a 5-year differences estimator, and a long differences estimator, including year fixed effects (when feasible) and the appropriate covariates in each case. Briefly describe the pattern that emerges from the three differencing estimates. Where doe sthe FE estimate fall in this pattern? Are you surprised?
+(h) Estimate a first-difference estimator, a 5-year differences estimator, and a long differences estimator, including year fixed effects (when feasible) and the appropriate covariates in each case. Briefly describe the pattern that emerges from the three differencing estimates. Where does the FE estimate fall in this pattern? Are you surprised?
 
 \bigskip
+
+The coefficient on primary seat belt law is growing in magnitude with first differences having the lowest and long differences having the greatest. First differences and five year differences are significant while long differences is not. This makes sense since long differences can only use one observation per state. The FE estimator is most similar to five year differences. This makes sense as the FE is an intermediary of the two extremes of first differences and long differences which is also one way we could think of the five year differences estimator.
 
 ```{r}
 ## First Differences Estimator
@@ -414,15 +426,15 @@ traffic[,c(ld_cols) := lapply(.SD, function(x){c(NA, NA, NA, NA, NA, NA, NA, NA,
 
 # Estimate first-differenced estimator with year FEs and covariates
 fd <- feols(ln_fat_pc_fd ~ primary_fd + secondary_fd + college_fd + beer_fd + ln_unemploy_fd + ln_totalvmt_fd + ln_precip_fd + ln_snow_fd + rural_speed_fd + urban_speed_fd, fixef = "year", data = traffic[year > 1981])
-summary(fd, se = "standard")
+summary(fd, cluster=traffic[year > 1981]$state)
 
 # Estimate 5-year differences estimator with year FEs and covariates
 fived <- feols(ln_fat_pc_fived ~ primary_fived + secondary_fived + college_fived + beer_fived + ln_unemploy_fived + ln_totalvmt_fived + ln_precip_fived + ln_snow_fived + rural_speed_fived + urban_speed_fived, fixef = "year", data = traffic[year > 1985])
-summary(fived, se = "standard")
+summary(fived, cluster=traffic[year > 1985]$state)
 
 # Estimate long differences estimator with covariates
-ld <- lm(ln_fat_pc_ld ~ primary_ld + secondary_ld + college_ld + beer_ld + ln_unemploy_ld + ln_totalvmt_ld + ln_precip_ld + ln_snow_ld + rural_speed_ld + urban_speed_ld -1, data = traffic[year == 2003])
-summary(ld) 
+ld <- feols(ln_fat_pc_ld ~ primary_ld + secondary_ld + college_ld + beer_ld + ln_unemploy_ld + ln_totalvmt_ld + ln_precip_ld + ln_snow_ld + rural_speed_ld + urban_speed_ld -1, data = traffic[year == 2003])
+summary(ld, se = "white") 
 
 ```
 \bigskip
@@ -431,9 +443,12 @@ summary(ld)
 
 \bigskip
 
+The first differences estimate uses more data than the 5-year or long differences estimate. As such, it is able to take advantage of high frequency variation in our covariate over time for estimation. This is appealing from an identification perspective since we can control for unobserved trends which makes it less likely that they would drive our results. The 5-year or long differences estimates, in contrast, could be biased by unobserved trends that differ across units.
+
 \bigskip
 
 (j) Make the case that the 5-year or long differences estimates are superior to the first-differences estimate. 
 
 \bigskip
 
+The 5-year differences and long differences estimates avoid problems with measurement error in our covariates. In first differences, measurement error could be accentuated, causing our estimate to pick up noise rather than the true signal. With 5-year differences and long differences, we use a lower frequency and thus are more likely to pick up longer-term trends that we think are the true signal.
