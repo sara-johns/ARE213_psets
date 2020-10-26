@@ -136,7 +136,15 @@ In what sense is the second regression a within estimator? Note that $\bar{R}_t$
 
 There is a key difference between this second regression and a one-step within estimator: we had to drop the first dummy variable for unit 1 (or whichever unit we chose). Thus, this second regression is equivalent to regressing $\tilde{y}_{it}$ and $\tilde{X}_{it}$ on ${R}_{it}$ and a constant.
 
+(b)
 
+In (a) we could have made two minor changes and obtained the same estimate of $\beta$ after two "within" transformations. First, we need to retain the dummy variable for the first unit in $R$ and dropped the dummy for the first time period (or some other time period) in $Q$ to avoid colinearity. And second, we change the order of the regressions. Now we first regress $y_{it}$, $X_{it}$ and $Q_{it}$ on $R_{it}$ and obtain the residuals $\tilde{y}_{it}$, $\tilde{X}_{it}$, and $\tilde{Q}_{it}$. Here we find that $\tilde{Q}_{it} = Q_{it} - \bar{Q}_i$ where in fact $\bar{Q}_i$ is constant across units $i$. The same logic implies that the second application of the FWL theorem can also be considered a within transformation, and of course our estimate of $\beta$ will be unchanged since the FWL theorem implies that we can perform these sets of regressions in any order (and the estimate is robust to dropping any of the dummy variables since the dummies remain, in a sense, saturated).
+
+Intuition: a two-way fixed effects estimator takes out the variation common to all units within a time period or to all observations of a unit. It should not matter what order we take out these components if the remaining variation is the same: we compare obserations of one unit but we ignore variation from time trends. Both paths lead to this final analysis.
+
+(c)
+
+In the case of unbalanced panel data, 
 
 
 
