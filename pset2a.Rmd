@@ -118,6 +118,14 @@ So for $T=2$ and ignoring any degree of freedom corrections, the standard errors
 
 # Question 2
 
+(a) We want to show that the fixed effects (FEs) estimator of $\beta$ in $y_{it} = \alpha + x_{it} \beta + \mu_i + \lambda_t + \epsilon_{it}$ can be obtained from two within transformations on this model. We show this by applying the Frisch-Waugh-Lovell (FWL) theorem. 
+
+First, we let $R$ be the matrix of unit dummy variables, similar to the one defined in the lecture notes (the only difference being that we drop one dummy from $R$ to avoid perfect colinearity; for example, let $R_1 = \textbf{0}$). Further define $Q$ to be a matrix of time fixed effects, so $Q_{it,s} = \textbf{1}(t = s)$. (Note that for each observation $it$ we clearly have $R_{it} = R_i$ and $Q_{it} = Q_t$.) The fixed effects estimator would involve regressing $y_{it}$ on $X_{it}$, $R_i$ and $Q_t$. 
+
+The FWL theorem, however, says that we can obtain the same coefficients from performing three simpler regressions. The first step is to regress $y_{it}$, $X_{it}$ and $R_{it}$ on $Q_{it}$ and obtain the residuals. This amounts to subtracting off the mean of each variable within each time period $t$. Define $\tilde{y}_{it} = y_{it} - \bar{y}_t$ where $\bar{y}_t := \frac{1}{T}\sum_t y_{it}$, and define $\tilde{X}_{it}$ and $\tilde{R}_{it}$ analogously.
+
+Note that $\tilde{R}_{it} = $
+
 # Question 3
 
 (a) Run pooled bivariate OLS. Interpret. Add year fixed effects. Interpret. Add all covariates that you believe are appropriate. Think carefully about which covariates should be log transformed and which should enter in levels. What happens when you add these covariates? Why?
