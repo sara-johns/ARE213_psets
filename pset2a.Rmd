@@ -334,7 +334,7 @@ cl_biv_yfe_cov[1:11]
 ```
 \bigskip
 
-When we calculate the White-robust and clustered standard errors by hand they are the same as the standard errors calculated by the "canned" commands above. We added adjustments to ensure of this. The White standard errors in the canned command are 'HC1' and use an adjustment factor of $\frac{N}{N-K}$. The clustered standard errors use an adjustment factor (also in the section notes) of $\frac{C}{C-1}\frac{N-1}{N-K}$. 
+When we calculate the White-robust and clustered standard errors by hand they are the same as the standard errors calculated by the "canned" commands above. We added adjustments to ensure this. The White standard errors in the canned command are 'HC1' and use an adjustment factor of $\frac{N}{N-K}$. The clustered standard errors use an adjustment factor (also in the section notes) of $\frac{C}{C-1}\frac{N-1}{N-K}$. 
 
 \bigskip
 
@@ -383,7 +383,7 @@ summary(random)
 ```
 
 \bigskip
-Our random effects estimator implies that having primary belt laws is associated with a `r round(random$coefficients[[2]]*(-100), 2)`% decrease in traffic fatalities per capita, ceteris paribus. Under the strict exogeneity assumption and the uncorrelated effects assumptions, that is the state-specific effect is uncorrelated with the regressors, the RE estimator is consistent. However if the uncorrelated effects assumption is violated, then our RE estimator will be biased. The benefit of the RE estimator is that if we can model the heteroskedasticity correctly it will be more efficient than pooled OLS. However, in order for the RE error structure to be correct, we need to assume that all residuals within a cluster are equally correlated with each other, which may not hold in practice. If this assumption does not hold, our RE estimator can still be consistent but may no longer be more efficient than OLS. 
+Our random effects estimator implies that having primary belt laws is associated with a `r round(random$coefficients[[2]]*(-100), 2)`% decrease in traffic fatalities per capita, ceteris paribus. Under the strict exogeneity assumption and the uncorrelated effects assumptions, that is the state-specific effect is uncorrelated with the regressors, the RE estimator is consistent. However if the uncorrelated effects assumption is violated, then our RE estimator will be biased. The benefit of the RE estimator is that if we can model the heteroskedasticity correctly it will be more efficient than pooled OLS. However, in order for the RE error structure to be correct, we need to assume that all residuals within a cluster are equally correlated with each other, which may not hold in practice. If this assumption does not hold, our RE estimator will still be consistent but may no longer be more efficient than OLS. 
 
 \bigskip
 
@@ -438,7 +438,7 @@ When we add our full set of covariates to the FE estimator we find that having p
 
 \bigskip
 
-The coefficient on primary seat belt law is growing in magnitude with first differences having the lowest and long differences having the greatest. First differences and five year differences are significant while long differences is not. This makes sense since long differences can only use one observation per state. The FE estimator is most similar to five year differences. This makes sense as the FE is an intermediary of the two extremes of first differences and long differences which is also one way we could think of the five year differences estimator.
+The coefficient on primary seat belt laws is increasing in magnitude with the time period of differencing, that is our first differences estimator has the smallest and our longest differences estimator has the largest magnitude. Our first differences and five year differences estimators are statistically significant, at the 10% and 1% level respectively, while our long differences estimator is not statistically significant. This makes sense since our long differences estimator only uses one observation per state. The FE estimator is most similar to the five year differences estimator, which is what we would expect since intuitively the FE estimator is an intermediary between the two extremes of the first differencing and long differencing estimators, combining the entire range of different differencing estimators together. 
 
 ```{r}
 ## First Differences Estimator
@@ -473,7 +473,7 @@ summary(ld, se = "white")
 
 \bigskip
 
-The first differences estimate uses more data than the 5-year or long differences estimate. As such, it is able to take advantage of high frequency variation in our covariate over time for estimation. This is appealing from an identification perspective since we can control for unobserved trends which makes it less likely that they would drive our results. The 5-year or long differences estimates, in contrast, could be biased by unobserved trends that differ across units.
+The first differences estimator uses more data than the 5-year or long differences estimator, since for any differencing estimator we can only use periods $s+1,...,T$ for estimation, where s indicates the lag period for differencing. As such, the FD estimator is able to take advantage of high frequency variation in our covariates over time for estimation. This is appealing from an identification perspective since we can control for unobserved trends, making it less likely that unobserved trends are driving our results. The 5-year or long differences estimates, in contrast, could be biased by unobserved trends that differ across units.
 
 \bigskip
 
@@ -481,4 +481,4 @@ The first differences estimate uses more data than the 5-year or long difference
 
 \bigskip
 
-The 5-year differences and long differences estimates avoid problems with measurement error in our covariates. In first differences, measurement error could be accentuated, causing our estimate to pick up noise rather than the true signal. With 5-year differences and long differences, we use a lower frequency and thus are more likely to pick up longer-term trends that we think are the true signal.
+The 5-year differences and long differences estimates are less sensitive to measurement error than the first differencing estimator. To see why the first differencing estimator is more sensitive to measurement error, note that measurement error (such as classical measurement error) in the covariates typically has less serial correlation than the true data generating process. Thus, sudden changes in the regressors are more likely to be noise than true signal. Unfortunately, a first differences estimator will accentuate any problems with measurement error, as it uses the shortest-run (highest frequency) variation in the regressors for estimation. Relatedly, a first differences estimator is less able to pick up on longer term effects. In contrast, a five year or long differences estimator is less sensitive to measurement error, because it uses longer-run (lower frequency) variation in the regressors, and is better able to pick up on longer-term trends. 
