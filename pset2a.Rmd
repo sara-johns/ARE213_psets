@@ -131,7 +131,7 @@ $$
 0 \\ 1/N \\ \vdots \\ 1/N
 \end{bmatrix} = R_{it} - \bar{R}_t
 $$
-In the second step, we regress $\tilde{y}_{it}$ and $\tilde{X}_{it}$ on $\tilde{R}_{it}$ and obtain the residuals, $\ddot{y}_{it}$ and $\ddot{X}_{it}$. The FWL theorem then guarentees that a regression of $\ddot{y}_{it}$ on $\ddot{X}_{it}$ will yield the fixed effects estimate of $\beta$. 
+In the second step, we regress $\tilde{y}_{it}$ and $\tilde{X}_{it}$ on $\tilde{R}_{it}$ and obtain the residuals, $\ddot{y}_{it}$ and $\ddot{X}_{it}$. The FWL theorem then guarantees that a regression of $\ddot{y}_{it}$ on $\ddot{X}_{it}$ will yield the fixed effects estimate of $\beta$. 
 In what sense is the second regression a within estimator? Note that $\bar{R}_t$ is a constant, so we are substracting a constant off of a set of variables. We can recall from introductory econometrics that substracting a constant from a variable will not change the estimated relationship between the dependent and independent variables.
 
 There is a key difference between this second regression and a one-step within estimator: we had to drop the first dummy variable for unit 1 (or whichever unit we chose). Thus, this second regression is equivalent to regressing $\tilde{y}_{it}$ and $\tilde{X}_{it}$ on ${R}_{it}$ and a constant.
@@ -242,7 +242,7 @@ Using the "canned" commands for calculating White-robust standard errors and clu
 
 \bigskip
 
-```{r}
+```{r, warning}
 # Manually calculate White-robust and clustered standard errors
 
 # Manually obtain beta OLS matrix
@@ -304,13 +304,17 @@ white_biv_adj <- nrow(xmat_biv)/(nrow(xmat_biv)- ncol(xmat_biv))
 white_biv_yfe_adj <- nrow(xmat_biv_yfe)/(nrow(xmat_biv_yfe)- ncol(xmat_biv_yfe))
 white_biv_yfe_cov_adj <- nrow(xmat_biv_yfe_cov)/(nrow(xmat_biv_yfe_cov)- ncol(xmat_biv_yfe_cov))
 # get standard errors
+# bivariate
 white_biv <- robust.se(xmat_biv, w_mid_biv, white_biv_adj)
 white_biv
+# bivariate with year FEs
 white_biv_yfe <- robust.se(xmat_biv_yfe, w_mid_biv_yfe, white_biv_yfe_adj)
 white_biv_yfe[1:2]
+# year FEs and covariates
 white_biv_yfe_cov <- robust.se(xmat_biv_yfe_cov, w_mid_biv_yfe_cov, white_biv_yfe_cov_adj)
 white_biv_yfe_cov[1:11]
-
+```
+```{r, warning=F, message=F}
 # Clustered by state
 states <- as.vector(unique(traffic[,state])) # list of states
 # adjustment factor (from section)
@@ -318,6 +322,7 @@ cl_biv_adj <- (length(states)/(length(states)-1))*((nrow(xmat_biv)-1)/(nrow(xmat
 cl_biv_yfe_adj <- (length(states)/(length(states)-1))*((nrow(xmat_biv_yfe)-1)/(nrow(xmat_biv_yfe)- ncol(xmat_biv_yfe)))
 cl_biv_yfe_cov_adj <- (length(states)/(length(states)-1))*((nrow(xmat_biv_yfe_cov)-1)/(nrow(xmat_biv_yfe_cov)- ncol(xmat_biv_yfe_cov)))
 
+# middle terms
 cl_mid_biv_terms <- lapply(states, cluster_middle, beta = beta_biv, DT = traffic, 
                              yvar="ln_fat_pc", xvars=biv_var)
 cl_mid_biv <- Reduce('+', cl_mid_biv_terms)
@@ -329,11 +334,16 @@ cl_mid_biv_yfe <- Reduce('+', cl_mid_biv_yfe_terms)
 cl_mid_biv_yfe_cov_terms <- lapply(states, cluster_middle, beta = beta_biv_yfe_cov, DT = traffic, 
                                      yvar="ln_fat_pc", xvars=biv_yfe_cov_var)
 cl_mid_biv_yfe_cov <- Reduce('+', cl_mid_biv_yfe_cov_terms)
-
+```
+```{r}
+# get standard errors
+# bivariate
 cl_biv <- robust.se(xmat_biv, cl_mid_biv, cl_biv_adj)
 cl_biv
+# bivariate with year FEs
 cl_biv_yfe <- robust.se(xmat_biv_yfe, cl_mid_biv_yfe, cl_biv_yfe_adj)
 cl_biv_yfe[1:2]
+# year FEs and covariates
 cl_biv_yfe_cov <- robust.se(xmat_biv_yfe_cov, cl_mid_biv_yfe_cov, cl_biv_yfe_cov_adj)
 cl_biv_yfe_cov[1:11]
 
@@ -412,7 +422,8 @@ coeftest(random, vcovHC(random, type="HC1", cluster="group"))
 \bigskip
 
 ```{r}
-fixed <- plm(ln_fat_pc ~ primary, data = traffic, effect="twoways", index = c("state", "year"), model = "within")
+fixed <- plm(ln_fat_pc ~ primary, data = traffic, effect="twoways", 
+             index = c("state", "year"), model = "within")
 summary(fixed)
 coeftest(fixed, vcov = vcovHC(fixed, type = "HC1", cluster = "group"))
 ```
@@ -430,7 +441,8 @@ Our FE estimator implies that having primary belt laws is associated with `r rou
 ```{r}
 fixed_cov <- plm(ln_fat_pc ~ primary + secondary + college + 
                 beer + ln_unemploy + ln_totalvmt + ln_precip +
-                ln_snow + rural_speed + urban_speed, data = traffic, effect="twoways", index = c("state", "year"), model = "within")
+                ln_snow + rural_speed + urban_speed, data = traffic, 
+                effect="twoways", index = c("state", "year"), model = "within")
 summary(fixed_cov)
 coeftest(fixed_cov, vcov = vcovHC(fixed, type = "HC1", cluster = "group"))
 ```
@@ -451,25 +463,43 @@ The coefficient on primary seat belt laws is increasing in magnitude with the ti
 # Create first-differenced variables
 setkey(traffic, state)
 # lists of differenced vars
-cols <- c("ln_fat_pc", "primary", "secondary", "college", "beer", "ln_unemploy", "ln_totalvmt", "ln_precip", "ln_snow", "rural_speed", "urban_speed")
-fd_cols <- c("ln_fat_pc_fd", "primary_fd", "secondary_fd", "college_fd", "beer_fd", "ln_unemploy_fd", "ln_totalvmt_fd", "ln_precip_fd", "ln_snow_fd", "rural_speed_fd", "urban_speed_fd")
-fived_cols <- c("ln_fat_pc_fived", "primary_fived", "secondary_fived", "college_fived", "beer_fived", "ln_unemploy_fived", "ln_totalvmt_fived", "ln_precip_fived", "ln_snow_fived", "rural_speed_fived", "urban_speed_fived")
-ld_cols <- c("ln_fat_pc_ld", "primary_ld", "secondary_ld", "college_ld", "beer_ld", "ln_unemploy_ld", "ln_totalvmt_ld", "ln_precip_ld", "ln_snow_ld", "rural_speed_ld", "urban_speed_ld")
+cols <- c("ln_fat_pc", "primary", "secondary", "college", "beer", 
+          "ln_unemploy", "ln_totalvmt", "ln_precip", "ln_snow", "rural_speed", "urban_speed")
+fd_cols <- c("ln_fat_pc_fd", "primary_fd", "secondary_fd", "college_fd", 
+             "beer_fd", "ln_unemploy_fd", "ln_totalvmt_fd", "ln_precip_fd", 
+             "ln_snow_fd", "rural_speed_fd", "urban_speed_fd")
+fived_cols <- c("ln_fat_pc_fived", "primary_fived", "secondary_fived", 
+                "college_fived", "beer_fived", "ln_unemploy_fived", "ln_totalvmt_fived", 
+                "ln_precip_fived", "ln_snow_fived", "rural_speed_fived", "urban_speed_fived")
+ld_cols <- c("ln_fat_pc_ld", "primary_ld", "secondary_ld", 
+             "college_ld", "beer_ld", "ln_unemploy_ld", "ln_totalvmt_ld", 
+             "ln_precip_ld", "ln_snow_ld", "rural_speed_ld", "urban_speed_ld")
 
 traffic[,c(fd_cols) := lapply(.SD, function(x){c(NA, diff(x, lag = 1))}), .SDcols = c(cols), by = state]
 traffic[,c(fived_cols) := lapply(.SD, function(x){c(NA, NA, NA, NA, NA, diff(x, lag = 5))}), .SDcols = c(cols), by = state]
-traffic[,c(ld_cols) := lapply(.SD, function(x){c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, diff(x, lag = 22))}), .SDcols = c(cols), by = state]
+traffic[,c(ld_cols) := lapply(.SD, function(x){c(NA, NA, NA, NA, NA, NA, NA, NA, 
+                                                 NA, NA, NA, NA, NA, NA, NA, NA, NA, 
+                                                 NA, NA, NA, NA, NA, diff(x, lag = 22))}), .SDcols = c(cols), by = state]
 
 # Estimate first-differenced estimator with year FEs and covariates
-fd <- feols(ln_fat_pc_fd ~ primary_fd + secondary_fd + college_fd + beer_fd + ln_unemploy_fd + ln_totalvmt_fd + ln_precip_fd + ln_snow_fd + rural_speed_fd + urban_speed_fd, fixef = "year", data = traffic[year > 1981])
+fd <- feols(ln_fat_pc_fd ~ primary_fd + secondary_fd + college_fd + 
+              beer_fd + ln_unemploy_fd + ln_totalvmt_fd + ln_precip_fd + 
+              ln_snow_fd + rural_speed_fd + urban_speed_fd, 
+            fixef = "year", data = traffic[year > 1981])
 summary(fd, cluster=traffic[year > 1981]$state)
 
 # Estimate 5-year differences estimator with year FEs and covariates
-fived <- feols(ln_fat_pc_fived ~ primary_fived + secondary_fived + college_fived + beer_fived + ln_unemploy_fived + ln_totalvmt_fived + ln_precip_fived + ln_snow_fived + rural_speed_fived + urban_speed_fived, fixef = "year", data = traffic[year > 1985])
+fived <- feols(ln_fat_pc_fived ~ primary_fived + secondary_fived + 
+                 college_fived + beer_fived + ln_unemploy_fived + ln_totalvmt_fived + 
+                 ln_precip_fived + ln_snow_fived + rural_speed_fived + urban_speed_fived, 
+               fixef = "year", data = traffic[year > 1985])
 summary(fived, cluster=traffic[year > 1985]$state)
 
 # Estimate long differences estimator with covariates
-ld <- feols(ln_fat_pc_ld ~ primary_ld + secondary_ld + college_ld + beer_ld + ln_unemploy_ld + ln_totalvmt_ld + ln_precip_ld + ln_snow_ld + rural_speed_ld + urban_speed_ld -1, data = traffic[year == 2003])
+ld <- feols(ln_fat_pc_ld ~ primary_ld + secondary_ld + 
+              college_ld + beer_ld + ln_unemploy_ld + ln_totalvmt_ld + ln_precip_ld + 
+              ln_snow_ld + rural_speed_ld + urban_speed_ld -1, 
+            data = traffic[year == 2003])
 summary(ld, se = "white") 
 
 ```
