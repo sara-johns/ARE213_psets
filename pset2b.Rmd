@@ -1,0 +1,53 @@
+---
+title: "ARE 213 Problem Set 2B"
+author: "Becky Cardinali, Yuen Ho, Sara Johns, and Jacob Lefler"
+date: "Due 11/16/2020"
+header-includes: 
+  - \usepackage{float}
+  - \floatplacement{figure}{H}
+  - \usepackage{amsmath}
+output: pdf_document
+fig_caption: yes
+geometry: margin=1.5cm
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#======================
+# Section 0: Set Up
+#======================
+
+# Clear workspace
+rm(list = ls())
+
+# Load packages
+library(pacman)
+library(zoo)
+library(haven)
+p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats, FNN, fastDummies, fixest, parallel, plm, lmtest, fixest)
+
+# set seed for replication
+set.seed(1995)
+# for mclapply
+core.num <- (detectCores()/2)
+# Directory 
+# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+# base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
+# base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
+
+# read data
+traffic <- as.data.table(read_dta(paste0(base_directory, "traffic_safety2.dta")))
+
+```
+
+# Question 1
+
+We first estimate an event study specification.
+
+(a) First determine the minimum and maximum event time values that you can estimate in this data set. Code up a separate event time indicator for each possible value of event time in the data set. Estimate an event study regression using all the event time indicators. What happens?
+
+# Question 2
+
+
