@@ -54,10 +54,22 @@ We now apply the synthetic control methods from Abadie et al (2010).
 
 (a)
 
-i.
+i. Compare the average pre-period log traffic fatalities per capita of the TU site to that of the average of all the “control” states. Next, graph the pre-period log traffic fatalities by year for the pre-period for both the TU and the average of the control group. Interpret.
 
-Compare the average pre-period log traffic fatalities per capita
-of the TU site to that of the average of all the “control” states.
-Next, graph the pre-period log traffic fatalities by year for the
-pre-period for both the TU and the average of the control
-group. Interpret.
+```{r}
+treatment_year <- 1986 # TU has primary=1 starting in 1986
+traffic_pre <- traffic[year<1986,]
+TU_fatal_pre <- traffic_pre[state==99,fatalities] # treated unit
+CU_fatal_pre <- traffic_pre[state!=99 && state!=09 && state!=19 && state!=35&& state!=48,fatalities] # control units
+
+
+
+```
+
+
+
+
+
+
+
+
