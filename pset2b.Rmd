@@ -25,7 +25,7 @@ rm(list = ls())
 library(pacman)
 library(zoo)
 library(haven)
-p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats, FNN, fastDummies, fixest, parallel, plm, lmtest, fixest)
+p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats, FNN, fastDummies, fixest, parallel, plm, lmtest, fixest, Synth)
 
 # set seed for replication
 set.seed(1995)
@@ -33,9 +33,9 @@ set.seed(1995)
 core.num <- (detectCores()/2)
 # Directory 
 # base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
-base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+# base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
 # base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
-# base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
+base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
 # read data
 traffic <- as.data.table(read_dta(paste0(base_directory, "traffic_safety2.dta")))
@@ -50,4 +50,14 @@ We first estimate an event study specification.
 
 # Question 2
 
+We now apply the synthetic control methods from Abadie et al (2010).
 
+(a)
+
+i.
+
+Compare the average pre-period log traffic fatalities per capita
+of the TU site to that of the average of all the “control” states.
+Next, graph the pre-period log traffic fatalities by year for the
+pre-period for both the TU and the average of the control
+group. Interpret.
