@@ -60,6 +60,10 @@ i. Compare the average pre-period log traffic fatalities per capita of the TU si
 traffic[,treat := ifelse(state_name == "CT" | state_name == "IA"|state_name == "NM" | state_name == "TX" |state == 99, 1, 0)]
 
 traffic_TU <- traffic[treat == 0 | state == 99,] #Create new data table without CT, IA, NM, TX
+
+#Set state_name for state 99 to TU
+traffic_TU[state == 99, state_name := "TU"]
+
 #Change treatment variable to a factor variable
 traffic_TU$treat <- as.factor(traffic_TU$treat)
 
