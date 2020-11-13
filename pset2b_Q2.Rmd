@@ -159,7 +159,7 @@ i.
 
 ii.
 
-```{r}
+```{r,include=FALSE}
 ## run the generate.placebos command to reassign treatment status
 ## to each unit listed as control, one at a time, and generate their
 ## synthetic versions. Sigf.ipop = 2 for faster computing time. 
