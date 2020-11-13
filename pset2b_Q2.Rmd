@@ -1,0 +1,100 @@
+---
+title: "ARE 213 Problem Set 2B"
+author: "Becky Cardinali, Yuen Ho, Sara Johns, and Jacob Lefler"
+date: "Due 11/16/2020"
+header-includes: 
+  - \usepackage{float}
+  - \floatplacement{figure}{H}
+  - \usepackage{amsmath}
+output: pdf_document
+fig_caption: yes
+geometry: margin=1.5cm
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#======================
+# Section 0: Set Up
+#======================
+
+# Clear workspace
+rm(list = ls())
+
+# Load packages
+library(pacman)
+library(zoo)
+library(haven)
+p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats, FNN, fastDummies, fixest, parallel, plm, lmtest, fixest, Synth)
+
+# set seed for replication
+set.seed(1995)
+# for mclapply
+core.num <- (detectCores()/2)
+# Directory 
+# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+# base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
+# base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
+
+# read data
+traffic <- as.data.table(read_dta(paste0(base_directory, "traffic_safety2.dta")))
+```
+
+# Question 1
+
+We first estimate an event study specification.
+
+(a) First determine the minimum and maximum event time values that you can estimate in this data set. Code up a separate event time indicator for each possible value of event time in the data set. Estimate an event study regression using all the event time indicators. What happens?
+
+# Question 2
+
+We now apply the synthetic control methods from Abadie et al (2010).
+
+(a)
+
+i. Compare the average pre-period log traffic fatalities per capita of the TU site to that of the average of all the “control” states. Next, graph the pre-period log traffic fatalities by year for the pre-period for both the TU and the average of the control group. Interpret.
+
+```{r}
+#Create a treatment status variable that = 1 if state is CT, IA, NM, or TX and =0 otherwise. 
+traffic[,treat := ifelse(state_name == "CT" | state_name == "IA"|state_name == "NM" | state_name == "TX" |state == 99, 1, 0)]
+
+traffic_TU <- traffic[treat == 0 | state == 99,]
+#Change treatment variable to a factor variable
+traffic_TU$treat <- as.factor(traffic$treat)
+
+#Create log fatalities per capita variable
+traffic_TU[, ln_fat_pc := log(fatalities/population)]
+
+#Compare the average pre-period log traffic fatalities per capita between treatment and control
+premeanT <- mean(traffic_TU[treat == 1 & year<1986, ln_fat_pc]) #mean pre-period log traffic fatalities in treatment
+premeanC <- mean(traffic_TU[treat == 0 & year<1986, ln_fat_pc]) #mean pre-period log traffic fatalities in control
+
+#Create variable of mean log traffic fatalities by treatment status by year
+traffic_TU[, mean_lnfat_treat := lapply(.SD, mean), .SDcols = c("ln_fat_pc"), by = c("treat","year")] 
+
+#Graph the mean pre-period log traffic fatalities by year for Treatment vs Control
+traffic_TU[year < 1986,] %>%
+  ggplot(aes(x=year, y = mean_lnfat_treat, group = treat, color = treat)) + 
+  geom_line() +
+  theme_minimal() +
+  labs(title = "Average Pre-Period Log Traffic Fatalities by Year", x = "Year", y = "Log Traffic Fatalities Per Capita", color = element_blank()) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_color_manual(labels = c("Controls", "TU"), values = c("coral1", "cyan3"))
+
+```
+
+The average pre-period log traffic fatalities per capita in our aggregate treatment unit is `r round(premeanT,2)` compared with `r round(premeanC,2)` in our control states. Graphically, we can see that while log traffic fatalities per capita are declining over time in both groups, treatment units have on average higher traffic fatalities per capita than control units in all pre-period years. This makes sense since states with higher traffic fatalities may make reducing traffic fatalities a bigger policy priority, leading to a higher likelihood of implementing seat belt laws.  
+
+```{r}
+#generate a variable that is the absolute value of the difference between the dependent variable of the TU site and each control state for the year before treatment 
+TU_dep_1985 <- traffic_TU[state == 99 & year == 1985, ln_fat_pc]
+traffic_TU[year == 1985,compare_dep := abs(ln_fat_pc - TU_dep_1985)]
+View(traffic_TU[compare_dep == min(traffic_TU$compare_dep),.(state, state_name)])
+apply(traffic_TU[year == 1985,ln_fat_pc])
+
+```
+
+
+
+
