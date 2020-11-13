@@ -57,6 +57,16 @@ $$Y_{ist} = \alpha + \sum_{j=-T_0}^{T-T_0} \tau_j D_{jst} + \gamma_s + \delta_t 
 where $T_0$ is the period just prior to treatment, and $D_{jst}$ is an indicator function for period $t$ falling $j$ periods after $T_0$ in the treated state (i.e., $\textbf{1}(t-T_0 = j)*\textbf{1}(s=1)$), so index $j$ is "event time."
 
 ```{r, include = TRUE}
+# Becky's notes to be deleted later
+# what if the primary seat belt law was taken away? i don't think it would show up in event time indicator, but that would make interpretation weird
+# how to code event time for places that never get treated? doesn't matter because they won't show up in the summation since D=0 always
+# how to code event time for places that were treated throughout the sample? it's luckily not the case in our sample, but might affect the max values part of this question
+# work out case for completely treated? think it won't work above because of second for loop with i in 0:1
+# doing logs like in pset 1, what about controls, 1+ for constant?
+# since the sum of the event time indicators is collinear with the treated state's fixed effect. ???
+# do you need dummy_cols if you use fixef?
+
+
 # separate event time indicator for each possible value of event time in the data set
 
 # create event time variable
@@ -113,13 +123,54 @@ traffic <- traffic[,dummy_cols(traffic, select_columns = c("year", "state", "eve
 traffic[, ln_fat_pc := log((fatalities/population))]
 
 # event study regression using all the event time indicators
-# below isn't working because event_time_-23 and all the negative number ones are weird
+# this isn't working because event_time_-23 and all the negative number ones are weird
 # even when when I just included event_time_2*primary, it removed event_time_2*primary because of collinearity
-# es1 <- feols(ln_fat_pc ~ 1 + event_time_-23*primary + (event_time_2*primary) + event_time_3*primary, fixef = c("year", "state"), traffic)
+es1 <- feols(ln_fat_pc ~ 1 + `event_time_-23`*primary + `event_time_-22`*primary + `event_time_-21`*primary +  
+               `event_time_-20`*primary + `event_time_-19`*primary + `event_time_-18`*primary + `event_time_-17`*primary +
+               `event_time_-16`*primary + `event_time_-15`*primary + `event_time_-14`*primary +
+               `event_time_-13`*primary + `event_time_-12`*primary + `event_time_-11`*primary +
+               `event_time_-10`*primary + `event_time_-9`*primary + `event_time_-8`*primary +
+               `event_time_-7`*primary + `event_time_-6`*primary + `event_time_-5`*primary +
+               `event_time_-4`*primary + `event_time_-3`*primary + `event_time_-2`*primary +
+               `event_time_-1`*primary + event_time_0*primary + event_time_1*primary + 
+               event_time_2*primary + event_time_3*primary + event_time_4*primary +
+               event_time_5*primary + event_time_6*primary + event_time_7*primary +
+               event_time_8*primary + event_time_9*primary + event_time_10*primary +
+               event_time_11*primary + event_time_12*primary + event_time_13*primary +
+               event_time_14*primary + event_time_15*primary + event_time_16*primary +
+               event_time_17*primary + event_time_18*primary + event_time_19*primary, fixef = c("year", "state"), traffic)
+
+
 
 
 
 ```
+
+When we estimate an event study regression using all the event time indicators, the following message pops up: "The variable 'event_time' has been removed because of collinearity." ? This makes sense because the sum in $Y_{ist} = \alpha + \sum_{j=-T_0}^{T-T_0} \tau_j D_{jst} + \gamma_s + \delta_t + \epsilon_{st} + u_{ist}$ contains $T$ dummy variables, which fully saturates event time and leads to the dummy variable trap since the sum of the event time indicators is collinear with the treated state's fixed effect. 
+
+(b) Estimate another event study regression using all the event time indicators save one that you choose to omit. Generate a plot of the event study coefficients. 
+
+```{r, include = TRUE}
+
+# omit event_time -1
+es2 <- feols(ln_fat_pc ~ 1 + `event_time_-23`*primary + `event_time_-22`*primary + `event_time_-21`*primary +  
+               `event_time_-20`*primary + `event_time_-19`*primary + `event_time_-18`*primary + `event_time_-17`*primary +
+               `event_time_-16`*primary + `event_time_-15`*primary + `event_time_-14`*primary +
+               `event_time_-13`*primary + `event_time_-12`*primary + `event_time_-11`*primary +
+               `event_time_-10`*primary + `event_time_-9`*primary + `event_time_-8`*primary +
+               `event_time_-7`*primary + `event_time_-6`*primary + `event_time_-5`*primary +
+               `event_time_-4`*primary + `event_time_-3`*primary + `event_time_-2`*primary +
+               event_time_0*primary + event_time_1*primary + 
+               event_time_2*primary + event_time_3*primary + event_time_4*primary +
+               event_time_5*primary + event_time_6*primary + event_time_7*primary +
+               event_time_8*primary + event_time_9*primary + event_time_10*primary +
+               event_time_11*primary + event_time_12*primary + event_time_13*primary +
+               event_time_14*primary + event_time_15*primary + event_time_16*primary +
+               event_time_17*primary + event_time_18*primary + event_time_19*primary, 
+             fixef = c("year", "state"), traffic)
+
+```
+
 
 # Question 2
 
