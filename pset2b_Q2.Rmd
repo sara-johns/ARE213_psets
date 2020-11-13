@@ -25,7 +25,7 @@ rm(list = ls())
 library(pacman)
 library(zoo)
 library(haven)
-p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats, FNN, fastDummies, fixest, parallel, plm, lmtest, fixest, Synth)
+p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats, FNN, fastDummies, fixest, parallel, plm, lmtest, fixest, Synth, SCtools)
 
 # set seed for replication
 set.seed(1995)
@@ -34,8 +34,8 @@ core.num <- (detectCores()/2)
 # Directory 
 # base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
 # base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
-base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
-# base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
+# base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
+base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
 # read data
 traffic <- as.data.table(read_dta(paste0(base_directory, "traffic_safety2.dta")))
@@ -46,6 +46,22 @@ traffic <- as.data.table(read_dta(paste0(base_directory, "traffic_safety2.dta"))
 We first estimate an event study specification.
 
 (a) First determine the minimum and maximum event time values that you can estimate in this data set. Code up a separate event time indicator for each possible value of event time in the data set. Estimate an event study regression using all the event time indicators. What happens?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Question 2
 
@@ -110,18 +126,9 @@ i.
 
 ii.
 
-```{r}
-#generate a variable that is the absolute value of the difference between the dependent variable of the TU site and each control state for the year before treatment 
-TU_dep_1985 <- traffic_TU[state == 99 & year == 1985, ln_fat_pc]
-traffic_TU[year == 1985,compare_dep := abs(ln_fat_pc - TU_dep_1985)]
-View(traffic_TU[compare_dep == min(traffic_TU$compare_dep),.(state, state_name)])
-apply(traffic_TU[year == 1985,ln_fat_pc])
-
-```
-
 
 ```{r}
-traffic_prep <- dataprep(foo = traffic_TU,
+dataprep.out <- dataprep(foo = traffic_TU,
                          predictors = c("college","unemploy","totalvmt","precip"),
                          predictors.op = "mean",
                          dependent = "ln_fat_pc",
@@ -141,15 +148,36 @@ traffic_prep <- dataprep(foo = traffic_TU,
 ## run the synth command to identify the weights
 ## that create the best possible synthetic 
 ## control unit for the treated.
-synth.out <- synth(traffic_prep)
+synth.out <- synth(dataprep.out)
+## plot the gaps (treated - synthetic)
+gaps.plot(dataprep.res = dataprep.out,synth.res = synth.out)
 ```
+
+(c)
+
+i.
+
+ii.
 
 ```{r}
-## plot in levels (treated and synthetic)
-path.plot(dataprep.res = traffic_prep,synth.res = synth.out)
-
-## plot the gaps (treated - synthetic)
-gaps.plot(dataprep.res = traffic_prep,synth.res = synth.out)
+## run the generate.placebos command to reassign treatment status
+## to each unit listed as control, one at a time, and generate their
+## synthetic versions. Sigf.ipop = 2 for faster computing time. 
+## Increase to the default of 5 for better estimates. 
+tdf <- generate.placebos(dataprep.out,
+                  synth.out,
+                  Sigf.ipop = 2,
+                  strategy = "sequential"
+                  )
 ```
-
-
+```{r}
+## Plot the gaps in outcome values over time of each unit --
+## treated and placebos -- to their synthetic controls
+p <- plot_placebos(tdf,
+                  discard.extreme=TRUE, 
+                  mspe.limit=10, 
+                  xlab='Year',
+                  ylab='Gap in per capita log fatalities',
+                  alpha.placebos = 1)
+p
+```
