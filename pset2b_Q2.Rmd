@@ -104,6 +104,52 @@ avg_comparisons[,c("AL_avg", "TU_avg")] <- round(avg_comparisons[,c("AL_avg", "T
 ```
 When we compare log traffic fatalities per capita in 1985 (the year before treatment), we find that Alabama is the state closest to the TU. We then compare the average pre-period values for various covariates between Alabama and TU in the table above and find that the two are not very comparable. For example, Alabama has on average a lower percentage of college grads, per capita beer consumption, population, total vechile miles travelled (VMT), and snowfall than the TU and on average higher unemployment and precipitation. Only the average pre-period rural speed is very similar across both Alabama and TU. This suggests that we Alabama is not a good counterfactual state since it differs from the TU systematically in the pre-period. 
 
+(b)
 
+i.
+
+ii.
+
+```{r}
+#generate a variable that is the absolute value of the difference between the dependent variable of the TU site and each control state for the year before treatment 
+TU_dep_1985 <- traffic_TU[state == 99 & year == 1985, ln_fat_pc]
+traffic_TU[year == 1985,compare_dep := abs(ln_fat_pc - TU_dep_1985)]
+View(traffic_TU[compare_dep == min(traffic_TU$compare_dep),.(state, state_name)])
+apply(traffic_TU[year == 1985,ln_fat_pc])
+
+```
+
+
+```{r}
+traffic_prep <- dataprep(foo = traffic_TU,
+                         predictors = c("college","unemploy","totalvmt","precip"),
+                         predictors.op = "mean",
+                         dependent = "ln_fat_pc",
+                         unit.variable = "state",
+                         time.variable = "year",
+                         special.predictors = list(
+                            list("ln_fat_pc", 1981, "mean"),
+                            list("ln_fat_pc", 1983, "mean"),
+                            list("ln_fat_pc", 1985, "mean")),
+                         treatment.identifier = 99,
+                         controls.identifier = c(1:5,7:9,11:29,31:40,42:48),
+                         time.predictors.prior = c(1981:1985),
+                         time.optimize.ssr = c(1981:1985),
+                         unit.names.variable = "state_name",
+                         time.plot = 1981:2003
+                         )
+## run the synth command to identify the weights
+## that create the best possible synthetic 
+## control unit for the treated.
+synth.out <- synth(traffic_prep)
+```
+
+```{r}
+## plot in levels (treated and synthetic)
+path.plot(dataprep.res = traffic_prep,synth.res = synth.out)
+
+## plot the gaps (treated - synthetic)
+gaps.plot(dataprep.res = traffic_prep,synth.res = synth.out)
+```
 
 
