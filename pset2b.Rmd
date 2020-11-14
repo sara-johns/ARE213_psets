@@ -26,11 +26,13 @@ library(pacman)
 library(zoo)
 library(haven)
 library(coefplot)
-p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats, FNN, fastDummies, fixest, parallel, plm, lmtest, fixest, Synth, sandwich)
+p_load(coefplot, data.table, dplyr, foreign, readstata13, tidyr, xtable, broom, stringr,
+       ggplot2, stats, FNN, fastDummies, fixest, parallel, plm, lmtest, fixest, Synth, sandwich)
+
 
 # Directory 
-# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
-base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+# base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
 # base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 # base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
@@ -149,32 +151,24 @@ es2 <- lm(ln_fat_pc ~ .-`event_time_-1`-`event_time_-1000`, data = traf_reg)
 es2_cluster <- vcovCL(es2, type = "HC1", cluster=traf_reg$county) # get cluster cov-var
 coeftest(es2, vcov. = es2_cluster)
 
-coefplot(es2, coefficients=c('`event_time_-22`', '`event_time_-21`', '`event_time_-20`',
-                             '`event_time_-19`', '`event_time_-18`', '`event_time_-17`',
-                             '`event_time_-16`', '`event_time_-15`', '`event_time_-14`',
-                             '`event_time_-13`', '`event_time_-12`', '`event_time_-11`',
-                             '`event_time_-10`', '`event_time_-9`', '`event_time_-8`',
-                             '`event_time_-7`', '`event_time_-6`', '`event_time_-5`',
-                             '`event_time_-4`', '`event_time_-3`', '`event_time_-2`',
-                             'event_time_0', 'event_time_1', '`event_time_2',
-                             'event_time_3', 'event_time_4', '`event_time_5',
-                             'event_time_6', 'event_time_7', '`event_time_8',
-                             'event_time_9', 'event_time_10', '`event_time_11',
-                             'event_time_12', 'event_time_13', '`event_time_14',
-                             'event_time_15', 'event_time_16', '`event_time_17',
-                             'event_time_18', 'event_time_19'), 
-    title = "Coefficient Plot",
-    xlab = "Coefficient", ylab = "Value", innerCI = 1,
-    outerCI = 2, lwdInner = 1, lwdOuter = 0,
-    color = "blue", cex = 0.8, textAngle = 0,
-    numberAngle = 75, zeroColor = "grey", zeroLWD = 1,
-    zeroType = 2, facet = FALSE, scales = "free",
-    decreasing = FALSE, numeric = FALSE,
-    fillColor = "grey", alpha = 1/2, horizontal = TRUE,
-    factors = NULL, only = NULL, shorten = TRUE,
-    intercept = TRUE, plot = TRUE)
+es2_table <- data.table(tidy(coeftest(es2, vcov. = es2_cluster)))
 
+es2_table <- es2_table[grep("event_time", term),]
+es2_table[, event_time := as.numeric(str_match(es2_table$term, "([0-9]{1,2})")[, 2])]
+es2_table[grep("-", term), event_time := -1 * event_time]
+es2_table[, ci_upper := estimate + 1.96*std.error]
+es2_table[, ci_lower := estimate - 1.96*std.error]
 
+ggplot(data=es2_table, aes(x=event_time, y=estimate)) +
+  geom_errorbar(aes(ymin=ci_lower, ymax=ci_upper), width=.1)  +
+  geom_point() +
+  geom_point(aes(x=-1, y=0), colour="black") +
+  geom_hline(yintercept=0, colour="black") +
+  geom_vline(xintercept = -1, colour = "red", linetype = "dashed") +
+  xlab("Event Time") +
+  ylab("Estimate") +
+  ggtitle("Event Study for Primary Laws") +
+  theme_bw()
 
 ```
 
@@ -214,22 +208,24 @@ es3 <- lm(ln_fat_pc ~ .-`bin_event_time_-1`, data = traf_reg3)
 es3_cluster <- vcovCL(es3, type = "HC1", cluster=traf_reg3$county) # get cluster cov-var
 coeftest(es3, vcov. = es3_cluster)
 
+es3_table <- data.table(tidy(coeftest(es3, vcov. = es3_cluster)))
 
-coefplot(es3, coefficients=c('`bin_event_time_-6`', '`bin_event_time_-5`', '`bin_event_time_-4`', 
-                             '`bin_event_time_-3`', '`bin_event_time_-2`',
-                             'bin_event_time_0', 'bin_event_time_1', '`bin_event_time_2',
-                             'bin_event_time_3', 'bin_event_time_4', '`bin_event_time_5',
-                             'bin_event_time_6'), 
-    title = "Coefficient Plot",
-    xlab = "Coefficient", ylab = "Value", innerCI = 1,
-    outerCI = 2, lwdInner = 1, lwdOuter = 0,
-    color = "blue", cex = 0.8, textAngle = 0,
-    numberAngle = 75, zeroColor = "grey", zeroLWD = 1,
-    zeroType = 2, facet = FALSE, scales = "free",
-    decreasing = FALSE, numeric = FALSE,
-    fillColor = "grey", alpha = 1/2, horizontal = TRUE,
-    factors = NULL, only = NULL, shorten = TRUE,
-    intercept = TRUE, plot = TRUE)
+es3_table <- es3_table[grep("event_time", term),]
+es3_table[, event_time := as.numeric(str_match(es3_table$term, "([0-9]{1,2})")[, 2])]
+es3_table[grep("-", term), event_time := -1 * event_time]
+es3_table[, ci_upper := estimate + 1.96*std.error]
+es3_table[, ci_lower := estimate - 1.96*std.error]
+
+ggplot(data=es3_table, aes(x=event_time, y=estimate)) +
+  geom_errorbar(aes(ymin=ci_lower, ymax=ci_upper), width=.1)  +
+  geom_point() +
+  geom_point(aes(x=-1, y=0), colour="black") +
+  geom_hline(yintercept=0, colour="black") +
+  geom_vline(xintercept = -1, colour = "red", linetype = "dashed") +
+  xlab("Event Time") +
+  ylab("Estimate") +
+  ggtitle("Event Study for Primary Laws") +
+  theme_bw()
 
 ```
 
