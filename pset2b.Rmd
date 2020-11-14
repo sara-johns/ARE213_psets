@@ -25,21 +25,12 @@ rm(list = ls())
 library(pacman)
 library(zoo)
 library(haven)
-p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats, FNN, fastDummies, fixest, parallel, plm, lmtest, fixest, Synth)
+p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats, FNN, fastDummies, fixest, parallel, plm, lmtest, fixest, Synth, sandwich)
 
-# set seed for replication
-set.seed(1995)
-# for mclapply
-core.num <- (detectCores()/2)
 # Directory 
-# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
-<<<<<<< HEAD
+base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
 # base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
-base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
-=======
-base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
 # base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
->>>>>>> 89ec79340923c84f20e7db5a58d375f384faae1b
 # base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
 # read data
@@ -120,33 +111,33 @@ for(s in unique(traffic$state)){
   }
 }
 
-# make separate event time indicator for each possible value of event time in the data set + state and year dummies
-traffic <- traffic[,dummy_cols(traffic, select_columns = c("year", "state", "event_time"))]
+# remove 99 for this part of the analysis
+traf_pt1 <- traffic[!(state==99),]
+
+# make separate event time indicator for each possible value of event time in the data set 
+traf_pt1 <- traf_pt1[,dummy_cols(traf_pt1, select_columns = c("event_time"))]
+
+# get ever treated dummy
+traf_pt1[,treat:=max(primary), by = state]
+# interact with ever treated
+event_time_cols <- names(traf_pt1[,`event_time_-1`:`event_time_19`]) # get list of event time columns
+# multiply ever treated by all event time columns
+traf_pt1 <- traf_pt1[, (event_time_cols) := lapply(.SD, function(x) x * traf_pt1$treat), .SDcols = event_time_cols]
 
 # create y variable
-traffic[, ln_fat_pc := log((fatalities/population))]
+traf_pt1[, ln_fat_pc := log((fatalities/population))]
+
+# make table with just the variables for the regression (makes writing out regression equation easier)
+traf_reg <- traf_pt1[,c("ln_fat_pc", "state", "year",..event_time_cols)]
+traf_reg[,state:=factor(state)]
+traf_reg[,year:=factor(year)]
 
 # event study regression using all the event time indicators
-# this isn't working because event_time_-23 and all the negative number ones are weird
-# even when when I just included event_time_2*primary, it removed event_time_2*primary because of collinearity
-es1 <- feols(ln_fat_pc ~ 1 + `event_time_-23`*primary + `event_time_-22`*primary + `event_time_-21`*primary +  
-               `event_time_-20`*primary + `event_time_-19`*primary + `event_time_-18`*primary + `event_time_-17`*primary +
-               `event_time_-16`*primary + `event_time_-15`*primary + `event_time_-14`*primary +
-               `event_time_-13`*primary + `event_time_-12`*primary + `event_time_-11`*primary +
-               `event_time_-10`*primary + `event_time_-9`*primary + `event_time_-8`*primary +
-               `event_time_-7`*primary + `event_time_-6`*primary + `event_time_-5`*primary +
-               `event_time_-4`*primary + `event_time_-3`*primary + `event_time_-2`*primary +
-               `event_time_-1`*primary + event_time_0*primary + event_time_1*primary + 
-               event_time_2*primary + event_time_3*primary + event_time_4*primary +
-               event_time_5*primary + event_time_6*primary + event_time_7*primary +
-               event_time_8*primary + event_time_9*primary + event_time_10*primary +
-               event_time_11*primary + event_time_12*primary + event_time_13*primary +
-               event_time_14*primary + event_time_15*primary + event_time_16*primary +
-               event_time_17*primary + event_time_18*primary + event_time_19*primary, fixef = c("year", "state"), traffic)
+es1 <- lm(ln_fat_pc ~ .-`event_time_-23`, data = traf_reg)
+es1_cluster <- vcovCL(es1, type = "HC1", cluster=traf_reg$county) # get cluster cov-var
+coeftest(es1, vcov. = es1_cluster)
 
-
-
-
+# lm chooses to remove event time 19
 
 ```
 
@@ -157,21 +148,9 @@ When we estimate an event study regression using all the event time indicators, 
 ```{r, include = TRUE}
 
 # omit event_time -1
-es2 <- feols(ln_fat_pc ~ 1 + `event_time_-23`*primary + `event_time_-22`*primary + `event_time_-21`*primary +  
-               `event_time_-20`*primary + `event_time_-19`*primary + `event_time_-18`*primary + `event_time_-17`*primary +
-               `event_time_-16`*primary + `event_time_-15`*primary + `event_time_-14`*primary +
-               `event_time_-13`*primary + `event_time_-12`*primary + `event_time_-11`*primary +
-               `event_time_-10`*primary + `event_time_-9`*primary + `event_time_-8`*primary +
-               `event_time_-7`*primary + `event_time_-6`*primary + `event_time_-5`*primary +
-               `event_time_-4`*primary + `event_time_-3`*primary + `event_time_-2`*primary +
-               event_time_0*primary + event_time_1*primary + 
-               event_time_2*primary + event_time_3*primary + event_time_4*primary +
-               event_time_5*primary + event_time_6*primary + event_time_7*primary +
-               event_time_8*primary + event_time_9*primary + event_time_10*primary +
-               event_time_11*primary + event_time_12*primary + event_time_13*primary +
-               event_time_14*primary + event_time_15*primary + event_time_16*primary +
-               event_time_17*primary + event_time_18*primary + event_time_19*primary, 
-             fixef = c("year", "state"), traffic)
+es2 <- lm(ln_fat_pc ~ .-`event_time_-1`-`event_time_-23`, data = traf_reg)
+es2_cluster <- vcovCL(es2, type = "HC1", cluster=traf_reg$county) # get cluster cov-var
+coeftest(es2, vcov. = es2_cluster)
 
 ```
 
@@ -185,42 +164,42 @@ We now apply the synthetic control methods from Abadie et al (2010).
 i. Compare the average pre-period log traffic fatalities per capita of the TU site to that of the average of all the “control” states. Next, graph the pre-period log traffic fatalities by year for the pre-period for both the TU and the average of the control group. Interpret.
 
 ```{r}
-#Create a treatment status variable that = 1 if state is CT, IA, NM, or TX and =0 otherwise. 
-traffic[,treat := ifelse(state_name == "CT" | state_name == "IA"|state_name == "NM" | state_name == "TX" |state == 99, 1, 0)]
-
-traffic_TU <- traffic[treat == 0 | state == 99,]
-#Change treatment variable to a factor variable
-traffic_TU$treat <- as.factor(traffic$treat)
-
-#Create log fatalities per capita variable
-traffic_TU[, ln_fat_pc := log(fatalities/population)]
-
-#Compare the average pre-period log traffic fatalities per capita between treatment and control
-premeanT <- mean(traffic_TU[treat == 1 & year<1986, ln_fat_pc]) #mean pre-period log traffic fatalities in treatment
-premeanC <- mean(traffic_TU[treat == 0 & year<1986, ln_fat_pc]) #mean pre-period log traffic fatalities in control
-
-#Create variable of mean log traffic fatalities by treatment status by year
-traffic_TU[, mean_lnfat_treat := lapply(.SD, mean), .SDcols = c("ln_fat_pc"), by = c("treat","year")] 
-
-#Graph the mean pre-period log traffic fatalities by year for Treatment vs Control
-traffic_TU[year < 1986,] %>%
-  ggplot(aes(x=year, y = mean_lnfat_treat, group = treat, color = treat)) + 
-  geom_line() +
-  theme_minimal() +
-  labs(title = "Average Pre-Period Log Traffic Fatalities by Year", x = "Year", y = "Log Traffic Fatalities Per Capita", color = element_blank()) +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  scale_color_manual(labels = c("Controls", "TU"), values = c("coral1", "cyan3"))
+# #Create a treatment status variable that = 1 if state is CT, IA, NM, or TX and =0 otherwise. 
+# traffic[,treat := ifelse(state_name == "CT" | state_name == "IA"|state_name == "NM" | state_name == "TX" |state == 99, 1, 0)]
+# 
+# traffic_TU <- traffic[treat == 0 | state == 99,]
+# #Change treatment variable to a factor variable
+# traffic_TU$treat <- as.factor(traffic$treat)
+# 
+# #Create log fatalities per capita variable
+# traffic_TU[, ln_fat_pc := log(fatalities/population)]
+# 
+# #Compare the average pre-period log traffic fatalities per capita between treatment and control
+# premeanT <- mean(traffic_TU[treat == 1 & year<1986, ln_fat_pc]) #mean pre-period log traffic fatalities in treatment
+# premeanC <- mean(traffic_TU[treat == 0 & year<1986, ln_fat_pc]) #mean pre-period log traffic fatalities in control
+# 
+# #Create variable of mean log traffic fatalities by treatment status by year
+# traffic_TU[, mean_lnfat_treat := lapply(.SD, mean), .SDcols = c("ln_fat_pc"), by = c("treat","year")] 
+# 
+# #Graph the mean pre-period log traffic fatalities by year for Treatment vs Control
+# traffic_TU[year < 1986,] %>%
+#   ggplot(aes(x=year, y = mean_lnfat_treat, group = treat, color = treat)) + 
+#   geom_line() +
+#   theme_minimal() +
+#   labs(title = "Average Pre-Period Log Traffic Fatalities by Year", x = "Year", y = "Log Traffic Fatalities Per Capita", color = element_blank()) +
+#   theme(plot.title = element_text(hjust = 0.5)) +
+#   scale_color_manual(labels = c("Controls", "TU"), values = c("coral1", "cyan3"))
 
 ```
 
-The average pre-period log traffic fatalities per capita in our aggregate treatment unit is `r round(premeanT,2)` compared with `r round(premeanC,2)` in our control states. Graphically, we can see that while log traffic fatalities per capita are declining over time in both groups, treatment units have on average higher traffic fatalities per capita than control units in all pre-period years. This makes sense since states with higher traffic fatalities may make reducing traffic fatalities a bigger policy priority, leading to a higher likelihood of implementing seat belt laws.  
+The average pre-period log traffic fatalities per capita in our aggregate treatment unit is premean t compared with premean c  in our control states. Graphically, we can see that while log traffic fatalities per capita are declining over time in both groups, treatment units have on average higher traffic fatalities per capita than control units in all pre-period years. This makes sense since states with higher traffic fatalities may make reducing traffic fatalities a bigger policy priority, leading to a higher likelihood of implementing seat belt laws.  
 
 ```{r}
 #generate a variable that is the absolute value of the difference between the dependent variable of the TU site and each control state for the year before treatment 
-TU_dep_1985 <- traffic_TU[state == 99 & year == 1985, ln_fat_pc]
-traffic_TU[year == 1985,compare_dep := abs(ln_fat_pc - TU_dep_1985)]
-View(traffic_TU[compare_dep == min(traffic_TU$compare_dep),.(state, state_name)])
-apply(traffic_TU[year == 1985,ln_fat_pc])
+# TU_dep_1985 <- traffic_TU[state == 99 & year == 1985, ln_fat_pc]
+# traffic_TU[year == 1985,compare_dep := abs(ln_fat_pc - TU_dep_1985)]
+# View(traffic_TU[compare_dep == min(traffic_TU$compare_dep),.(state, state_name)])
+# apply(traffic_TU[year == 1985,ln_fat_pc])
 
 ```
 
