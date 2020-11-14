@@ -25,11 +25,12 @@ rm(list = ls())
 library(pacman)
 library(zoo)
 library(haven)
+library(coefplot)
 p_load(data.table, dplyr, foreign, readstata13, tidyr, xtable, ggplot2, binom, glmnet, stats, FNN, fastDummies, fixest, parallel, plm, lmtest, fixest, Synth, sandwich)
 
 # Directory 
-base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
-# base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
 # base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 # base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
@@ -43,24 +44,17 @@ We first estimate an event study specification.
 
 (a) First determine the minimum and maximum event time values that you can estimate in this data set. Code up a separate event time indicator for each possible value of event time in the data set. Estimate an event study regression using all the event time indicators. What happens?
 
-The data set contains data for each year in $[1981, 2003]$. Therefore, the minimum number of event time values we can estimate in this data set is 23 $(2003-1981+1)$, which would be the case where all states are treated in the same year, all states are treated during all years in the data set, or all states are untreated during all years in the data set. 
+The data set contains data for each year in $[1981, 2003]$. 
 
-The maximum event time value we can estimate in this data set is 47?? $(2003-1981+1)*2$, which would be the case where at least one state was treated for the entire sample (event time 1 to 23) and at least one state was never treated during the sample (event time -23 to -1) (23 + 23 + 1 for event time 0)
+The latest year that any state adopted a primary seat belt law was 2003, so the minimum event time value we can estimate in this dataset is -22. We know this because year 2003 is coded as event time 0 in this case, and there are 22 periods in $[1981, 2002]$ which come before the year of adoption so they are coded with negative event time values.
 
-We have a single treated state $(s = 1$ when the state has a primary seat belt law) and a single control state $(s = 0$ when a state does not have a primary seat belt law). So for an event study regression using all the event time indicators, we will estimate the regression: 
+The earliest year that any state adopted a primary seat belt law was 1984, so the maximum event time value we can estimate in this dataset is 19. We know this because year 1984 is coded as event time 0 in this case, and there are 19 periods in $[1985, 2003]$ which come after the year of adoption so they are coded with positive event time values.
+
+We have a single treated state $(s = 1$ if a state ever gets a primary seat belt law in the sample) and a single control state $(s = 0$ if a state never gets a primary seat belt law in the sample). So for an event study regression using all the event time indicators, we will estimate the regression: 
 $$Y_{ist} = \alpha + \sum_{j=-T_0}^{T-T_0} \tau_j D_{jst} + \gamma_s + \delta_t + \epsilon_{st} + u_{ist}$$
 where $T_0$ is the period just prior to treatment, and $D_{jst}$ is an indicator function for period $t$ falling $j$ periods after $T_0$ in the treated state (i.e., $\textbf{1}(t-T_0 = j)*\textbf{1}(s=1)$), so index $j$ is "event time."
 
 ```{r, include = TRUE}
-# Becky's notes to be deleted later
-# what if the primary seat belt law was taken away? i don't think it would show up in event time indicator, but that would make interpretation weird
-# how to code event time for places that never get treated? doesn't matter because they won't show up in the summation since D=0 always
-# how to code event time for places that were treated throughout the sample? it's luckily not the case in our sample, but might affect the max values part of this question
-# work out case for completely treated? think it won't work above because of second for loop with i in 0:1
-# doing logs like in pset 1, what about controls, 1+ for constant?
-# since the sum of the event time indicators is collinear with the treated state's fixed effect. ???
-# do you need dummy_cols if you use fixef?
-
 
 # separate event time indicator for each possible value of event time in the data set
 
@@ -75,36 +69,38 @@ for(s in unique(traffic$state)){
   # make sure it's in ascending order by year
   temp <- temp[order(year), ]
 
-  # find the row # and year corresponding to the first occurrence of primary == 1 in the dataframe for just that state
+  # find the row # and year corresponding to the first occurrence of primary == 1 
+  # in the dataframe for just that state
   row_of_first_occ <- match(1, temp$primary)
   first_treated_year <- traffic[match(1, temp$primary), year]
   
   # case where a state was never treated in the sample (row_of_first_occ == NA)
+  # make all event times very negative (-1000) for these never treated states
+  
   if(is.na(row_of_first_occ)){
-    k <- -1
-    for(i in 23:1){
-       # year 2003 corresponds to event time = -1, year 2002 corresponds to event time = -2, etc.
-      setDT(traffic)[, event_time := ifelse(state == s & year == (2004 + k), k, event_time)]
-      k <- k - 1
-    }
+    
+    # all event_time values get coded as -1000
+    setDT(traffic)[, event_time := ifelse(state == s, -1000, event_time)]
   }
   
   # case where a state was treated in the sample (row_of_first_occ > 1)
-  # no cases of a state being treated during the entire sample
+  # there are no cases of a state being treated during the entire sample
   else{
     # for the first year with primary == 1, make event time = 0
     setDT(traffic)[, event_time := ifelse(state == s & year == first_treated_year, 0, event_time)]
 
     k <- 1
     for(i in (row_of_first_occ+1):23){
-      # year after event time 0 corresponds to event time 1, 2 years after event time 0 corresponds to event time 2, etc.
+      # year after event time 0 corresponds to event time 1, 
+      # 2 years after event time 0 corresponds to event time 2, etc.
       setDT(traffic)[, event_time := ifelse(state == s & year == (first_treated_year + k), k, event_time)]
       k <- k + 1
       }
 
     k <- -1
     for(i in (row_of_first_occ-1):1){
-      # year before event time 0 corresponds to event time -1, 2 years before event time 0 corresponds to event time -2, etc.
+      # year before event time 0 corresponds to event time -1, 
+      # 2 years before event time 0 corresponds to event time -2, etc.
       setDT(traffic)[, event_time := ifelse(state == s & year == (first_treated_year + k), k, event_time)]
       k <- k - 1
       }
@@ -122,7 +118,8 @@ traf_pt1[,treat:=max(primary), by = state]
 # interact with ever treated
 event_time_cols <- names(traf_pt1[,`event_time_-1`:`event_time_19`]) # get list of event time columns
 # multiply ever treated by all event time columns
-traf_pt1 <- traf_pt1[, (event_time_cols) := lapply(.SD, function(x) x * traf_pt1$treat), .SDcols = event_time_cols]
+traf_pt1 <- traf_pt1[, (event_time_cols) := lapply(.SD, function(x) x * traf_pt1$treat), 
+                     .SDcols = event_time_cols]
 
 # create y variable
 traf_pt1[, ln_fat_pc := log((fatalities/population))]
@@ -133,7 +130,7 @@ traf_reg[,state:=factor(state)]
 traf_reg[,year:=factor(year)]
 
 # event study regression using all the event time indicators
-es1 <- lm(ln_fat_pc ~ .-`event_time_-23`, data = traf_reg)
+es1 <- lm(ln_fat_pc ~ .-`event_time_-1000`, data = traf_reg)
 es1_cluster <- vcovCL(es1, type = "HC1", cluster=traf_reg$county) # get cluster cov-var
 coeftest(es1, vcov. = es1_cluster)
 
@@ -141,18 +138,139 @@ coeftest(es1, vcov. = es1_cluster)
 
 ```
 
-When we estimate an event study regression using all the event time indicators, the following message pops up: "The variable 'event_time' has been removed because of collinearity." ? This makes sense because the sum in $Y_{ist} = \alpha + \sum_{j=-T_0}^{T-T_0} \tau_j D_{jst} + \gamma_s + \delta_t + \epsilon_{st} + u_{ist}$ contains $T$ dummy variables, which fully saturates event time and leads to the dummy variable trap since the sum of the event time indicators is collinear with the treated state's fixed effect. 
+When we estimate an event study regression using all the event time indicators, the $\texttt{lm}$ function in R chooses to remove event time 19. It makes sense that R omitted one event time indicator becuase in practice, one cannot estimate the regression using all the event time indicators because of the dummy variable trap. In an event study regression using all the event time indicators, the sum in $Y_{ist} = \alpha + \sum_{j=-T_0}^{T-T_0} \tau_j D_{jst} + \gamma_s + \delta_t + \epsilon_{st} + u_{ist}$ contains $T$ dummy variables, which fully saturates event time and leads to the dummy variable trap since the sum of the event time indicators (the $D_{jst}$) is collinear with the treated state's fixed effect. 
 
 (b) Estimate another event study regression using all the event time indicators save one that you choose to omit. Generate a plot of the event study coefficients. 
 
 ```{r, include = TRUE}
 
 # omit event_time -1
-es2 <- lm(ln_fat_pc ~ .-`event_time_-1`-`event_time_-23`, data = traf_reg)
+es2 <- lm(ln_fat_pc ~ .-`event_time_-1`-`event_time_-1000`, data = traf_reg)
 es2_cluster <- vcovCL(es2, type = "HC1", cluster=traf_reg$county) # get cluster cov-var
 coeftest(es2, vcov. = es2_cluster)
 
+coefplot(es2, coefficients=c('`event_time_-22`', '`event_time_-21`', '`event_time_-20`',
+                             '`event_time_-19`', '`event_time_-18`', '`event_time_-17`',
+                             '`event_time_-16`', '`event_time_-15`', '`event_time_-14`',
+                             '`event_time_-13`', '`event_time_-12`', '`event_time_-11`',
+                             '`event_time_-10`', '`event_time_-9`', '`event_time_-8`',
+                             '`event_time_-7`', '`event_time_-6`', '`event_time_-5`',
+                             '`event_time_-4`', '`event_time_-3`', '`event_time_-2`',
+                             'event_time_0', 'event_time_1', '`event_time_2',
+                             'event_time_3', 'event_time_4', '`event_time_5',
+                             'event_time_6', 'event_time_7', '`event_time_8',
+                             'event_time_9', 'event_time_10', '`event_time_11',
+                             'event_time_12', 'event_time_13', '`event_time_14',
+                             'event_time_15', 'event_time_16', '`event_time_17',
+                             'event_time_18', 'event_time_19'), 
+    title = "Coefficient Plot",
+    xlab = "Coefficient", ylab = "Value", innerCI = 1,
+    outerCI = 2, lwdInner = 1, lwdOuter = 0,
+    color = "blue", cex = 0.8, textAngle = 0,
+    numberAngle = 75, zeroColor = "grey", zeroLWD = 1,
+    zeroType = 2, facet = FALSE, scales = "free",
+    decreasing = FALSE, numeric = FALSE,
+    fillColor = "grey", alpha = 1/2, horizontal = TRUE,
+    factors = NULL, only = NULL, shorten = TRUE,
+    intercept = TRUE, plot = TRUE)
+
+
+
 ```
+
+(c) Create minimum and maximum event time indicators that correspond to bins of event time $< -5$ and event time $> 5$ respectively. Appropriately specify and estimate an event study regression using these min and max event time indicators. Generate a plot of the event study coefficients. Explain which specification you prefer, this one or the one in part (b). 
+
+```{r, include = TRUE}
+
+# create min and max event time indicators for event time < -5 and > 5
+traf_pt1 <- traf_pt1[, bin_event_time := event_time]
+
+# make any event time > 5 equal to 6 (max event time indicator)
+setDT(traf_pt1)[, bin_event_time := ifelse(event_time > 5, 6, bin_event_time)]
+
+# make any event time < -5 equal to -6 (min event time indicator)
+# this means never treated states (which have event time -1000) will be in the
+# min event time group, but this doesn't change the coefficient on the min 
+# event time dummy 
+setDT(traf_pt1)[, bin_event_time := ifelse(event_time < -5, -6, bin_event_time)]
+
+
+# make separate bin event time indicator for each possible value of bin event time in the data set 
+traf_pt1 <- traf_pt1[,dummy_cols(traf_pt1, select_columns = c("bin_event_time"))]
+
+# interact with ever treated
+bin_event_time_cols <- names(traf_pt1[,`bin_event_time_-1`:`bin_event_time_6`]) # get list of bin event time columns
+# multiply ever treated by all bin event time columns
+traf_pt1 <- traf_pt1[, (bin_event_time_cols) := lapply(.SD, function(x) x * traf_pt1$treat), 
+                     .SDcols = bin_event_time_cols]
+
+# make table with just the variables for the regression (makes writing out regression equation easier)
+traf_reg3 <- traf_pt1[,c("ln_fat_pc", "state", "year",..bin_event_time_cols)]
+traf_reg3[,state:=factor(state)]
+traf_reg3[,year:=factor(year)]
+
+# event study regression using all the bin event time indicators except -1
+es3 <- lm(ln_fat_pc ~ .-`bin_event_time_-1`, data = traf_reg3)
+es3_cluster <- vcovCL(es3, type = "HC1", cluster=traf_reg3$county) # get cluster cov-var
+coeftest(es3, vcov. = es3_cluster)
+
+
+coefplot(es3, coefficients=c('`bin_event_time_-6`', '`bin_event_time_-5`', '`bin_event_time_-4`', 
+                             '`bin_event_time_-3`', '`bin_event_time_-2`',
+                             'bin_event_time_0', 'bin_event_time_1', '`bin_event_time_2',
+                             'bin_event_time_3', 'bin_event_time_4', '`bin_event_time_5',
+                             'bin_event_time_6'), 
+    title = "Coefficient Plot",
+    xlab = "Coefficient", ylab = "Value", innerCI = 1,
+    outerCI = 2, lwdInner = 1, lwdOuter = 0,
+    color = "blue", cex = 0.8, textAngle = 0,
+    numberAngle = 75, zeroColor = "grey", zeroLWD = 1,
+    zeroType = 2, facet = FALSE, scales = "free",
+    decreasing = FALSE, numeric = FALSE,
+    fillColor = "grey", alpha = 1/2, horizontal = TRUE,
+    factors = NULL, only = NULL, shorten = TRUE,
+    intercept = TRUE, plot = TRUE)
+
+```
+
+Explain which specification you prefer
+
+(d) What happens to your estimates from part (b) if you exclude the "pure control" states from your sample? What about if you exclude the pure controls in part (c)?
+
+```{r, include = TRUE}
+
+# exclude "pure control" states from the sample
+traf_pt1_no_pure <- traf_pt1[!(event_time==-1000),]
+
+# redo part (b) with no "pure control" states
+
+# make table with just the variables for the regression (makes writing out regression equation easier)
+traf_reg <- traf_pt1_no_pure[,c("ln_fat_pc", "state", "year",..event_time_cols)]
+traf_reg[,state:=factor(state)]
+traf_reg[,year:=factor(year)]
+
+es_b <- lm(ln_fat_pc ~ .-`event_time_-1`, data = traf_reg)
+es_b_cluster <- vcovCL(es_b, type = "HC1", cluster=traf_reg$county) # get cluster cov-var
+coeftest(es_b, vcov. = es_b_cluster)
+
+
+# redo part (c) with no "pure control" states
+
+# make table with just the variables for the regression (makes writing out regression equation easier)
+traf_reg3 <- traf_pt1_no_pure[,c("ln_fat_pc", "state", "year",..bin_event_time_cols)]
+traf_reg3[,state:=factor(state)]
+traf_reg3[,year:=factor(year)]
+
+# event study regression using all the bin event time indicators except -1
+es_c <- lm(ln_fat_pc ~ .-`bin_event_time_-1`, data = traf_reg3)
+es_c_cluster <- vcovCL(es_c, type = "HC1", cluster=traf_reg3$county) # get cluster cov-var
+coeftest(es_c, vcov. = es_c_cluster)
+
+```
+
+What happens + explanation
+
+(e)
 
 
 # Question 2
