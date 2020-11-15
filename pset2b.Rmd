@@ -30,8 +30,8 @@ p_load(coefplot, data.table, dplyr, foreign, readstata13, tidyr, xtable, broom, 
 
 
 # Directory 
-base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
-# base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
 # base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 # base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
@@ -51,9 +51,9 @@ The latest year that any state adopted a primary seat belt law was 2003, so the 
 
 The earliest year that any state adopted a primary seat belt law was 1984, so the maximum event time value we can estimate in this dataset is 19. We know this because year 1984 is coded as event time 0 in this case, and there are 19 periods in $[1985, 2003]$ which come after the year of adoption so they are coded with positive event time values.
 
-We have a single treated state $(s = 1$ if a state ever gets a primary seat belt law in the sample) and a single control state $(s = 0$ if a state never gets a primary seat belt law in the sample). So for an event study regression using all the event time indicators, we will estimate the regression: 
+In the case of a single treated state $(s = 1)$ and a single control state $(s = 0)$, for an event study regression using all the event time indicators, we would estimate the regression: 
 $$Y_{ist} = \alpha + \sum_{j=-T_0}^{T-T_0} \tau_j D_{jst} + \gamma_s + \delta_t + \epsilon_{st} + u_{ist}$$
-where $T_0$ is the period just prior to treatment, and $D_{jst}$ is an indicator function for period $t$ falling $j$ periods after $T_0$ in the treated state (i.e., $\textbf{1}(t-T_0 = j)*\textbf{1}(s=1)$), so index $j$ is "event time."
+where $T_0$ is the period just prior to treatment, and $D_{jst}$ is an indicator function for period $t$ falling $j$ periods after $T_0$ in the treated state (i.e., $\textbf{1}(t-T_0 = j)*\textbf{1}(s=1)$), so index $j$ is "event time." In our case, we have multiple treated states with event dates that vary across units, so our regression specification will be slightly different, particularly our event time indicators will be interacted with an "ever treated" indicator for each state.
 
 ```{r, include = TRUE}
 
@@ -139,7 +139,7 @@ coeftest(es1, vcov. = es1_cluster)
 
 ```
 
-When we estimate an event study regression using all the event time indicators, the $\texttt{lm}$ function in R chooses to remove event time 19. It makes sense that R omitted one event time indicator becuase in practice, one cannot estimate the regression using all the event time indicators because of the dummy variable trap. In an event study regression using all the event time indicators, the sum in $Y_{ist} = \alpha + \sum_{j=-T_0}^{T-T_0} \tau_j D_{jst} + \gamma_s + \delta_t + \epsilon_{st} + u_{ist}$ contains $T$ dummy variables, which fully saturates event time and leads to the dummy variable trap since the sum of the event time indicators (the $D_{jst}$) is collinear with the treated state's fixed effect. 
+When we estimate an event study regression using all the event time indicators, the $\texttt{lm}$ function in R chooses to remove event time 19. It makes sense that R omitted one event time indicator because in practice, one cannot estimate the regression using all the event time indicators because of the dummy variable trap. An event study regression using all the event time indicators contains $T$ dummy variables, which fully saturates event time and leads to the dummy variable trap.
 
 (b) Estimate another event study regression using all the event time indicators save one that you choose to omit. Generate a plot of the event study coefficients. 
 
@@ -228,7 +228,9 @@ ggplot(data=es3_table, aes(x=event_time, y=estimate)) +
 
 ```
 
-Explain which specification you prefer
+There are tradeoffs between this specification (with min and max bins) and the specification in part (b) (without min and max bins). The specification in part (b) allows us to look at estimates for more years before and after treatment. However, the very large and very small values of event time may include information from only a few states since the distribution of event time is unbalanced across units in our sample. Early-treated units do not have very early event time dummies, and late-treated units do not have very late event time dummies. 
+
+The min and max bins in this specification (c) partially address the unbalanced distribution of event time across units, but this specification only shows us 6 periods before and 6 periods after treatment. Additionally, the cutoffs for min and max in this specification can seem arbitrary. Nevertheless, as we will see in part (d), the min and max bins in this specification help avoid collinearity that can occur with the specification in part (b) if there are no "pure control" states. So overall, this specification with min and max bins seems preferable.
 
 (d) What happens to your estimates from part (b) if you exclude the "pure control" states from your sample? What about if you exclude the pure controls in part (c)?
 
@@ -248,7 +250,14 @@ es_b <- lm(ln_fat_pc ~ .-`event_time_-1`, data = traf_reg)
 es_b_cluster <- vcovCL(es_b, type = "HC1", cluster=traf_reg$county) # get cluster cov-var
 coeftest(es_b, vcov. = es_b_cluster)
 
+# lm chooses to remove event time 19
+# (even though we already removed event time -1)
+```
 
+If we exclude the "pure control" states from our sample, the $\texttt{lm}$ function in R chooses to remove event time 19, even though we already removed one event time dummy (event time -1). It makes sense that R omitted an additional event time dummy because without any "pure control" states, there is collinearity since event time is equal to calendar time minus the treatment date. When there are no "pure control" states, the full set of event time indicators (with one omitted) plus time and treatment date fixed effects (treatment date fixed effects are proxied by state fixed effects) will be collinear and thus result in the dummy variable trap, which is why it makes sense that R removed an additional event time dummy.
+
+
+```{r, include = TRUE}
 # redo part (c) with no "pure control" states
 
 # make table with just the variables for the regression (makes writing out regression equation easier)
@@ -261,11 +270,31 @@ es_c <- lm(ln_fat_pc ~ .-`bin_event_time_-1`, data = traf_reg3)
 es_c_cluster <- vcovCL(es_c, type = "HC1", cluster=traf_reg3$county) # get cluster cov-var
 coeftest(es_c, vcov. = es_c_cluster)
 
+es_c_table <- data.table(tidy(coeftest(es_c, vcov. = es_c_cluster)))
+
+es_c_table <- es_c_table[grep("event_time", term),]
+es_c_table[, event_time := as.numeric(str_match(es_c_table$term, "([0-9]{1,2})")[, 2])]
+es_c_table[grep("-", term), event_time := -1 * event_time]
+es_c_table[, ci_upper := estimate + 1.96*std.error]
+es_c_table[, ci_lower := estimate - 1.96*std.error]
+
+ggplot(data=es_c_table, aes(x=event_time, y=estimate)) +
+  geom_errorbar(aes(ymin=ci_lower, ymax=ci_upper), width=.1)  +
+  geom_point() +
+  geom_point(aes(x=-1, y=0), colour="black") +
+  geom_hline(yintercept=0, colour="black") +
+  geom_vline(xintercept = -1, colour = "red", linetype = "dashed") +
+  xlab("Event Time") +
+  ylab("Estimate") +
+  ggtitle("Event Study for Primary Laws") +
+  theme_bw()
 ```
 
-What happens + explanation
+If we exclude the "pure control" states from our sample, the estimates as compared to part (c) are slightly different, especially for the larger and smaller event time bins, and more coefficients were statistically significant in (c) than here. But overall, the estimates are not that different from (c). Importantly, there is no collinearity in this min and max bin specification, even when there are no "pure control" states, which shows that collinearity was avoided using the specification with min and max bins, but it was not avoided when redoing the specification in (b) with no "pure control" states. 
 
-(e)
+(e) Overall, does the event study regression make you more confident or less confident that seat belt laws reduce fatalities (relative to the fixed effects results that you estimated on the last problem set)? Briefly explain. 
+
+Last problem set, we found that when we add our full set of covariates to the FE estimator, having primary belt laws is associated with 8.98% decrease in traffic fatalities per capita, ceteris paribus, which is statistically significant at the 1% level. Overall, the event study regression makes us less confident that seat belt laws reduce fatalities (relative to our fixed effects results that we estimated last problem set). From the lecture notes, for event studies, an abrupt change in the outcome immediately after treatment is often viewed as more credible than a gradual change over time, because it is less likely to be due to differential trends between the treated and control states. Our plots of the event study coefficients do not show an abrupt (or statistically significant) change in the outcome immediately after treatment, or even in the first few periods after treatment. So our event study regression results make us less confident. However, our event study regression specification may need to be modified further before interpreting the results, and we will do one such modification in part (f).
 
 (f) Building off the event study regression from part (c), estimate the interaction weighted event study estimator from Sun and Abraham (2020) (discussed in lecture and posted on bCourses for refrence). As a reminder, the interacted event study regression takes the standard event time indicators (without any binning) and interacts each one with a cohort indicator (a cohort refers to a group of states that share the same date on which they were first treated). You then form the estimate for event time coefficient $\tau_j$ by averaging the estimates of the cohort-specific $\tau_j$ using the weights described in Sun and Abraham (2020).
 
