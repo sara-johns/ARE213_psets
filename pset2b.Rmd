@@ -25,8 +25,7 @@ rm(list = ls())
 library(pacman)
 library(zoo)
 library(haven)
-library(coefplot)
-p_load(coefplot, data.table, dplyr, foreign, readstata13, tidyr, xtable, broom, stringr,
+p_load(coefplot, data.table, dplyr, foreign, readstata13, tidyr, xtable, broom, stringr, glue,
        ggplot2, stats, FNN, fastDummies, fixest, parallel, plm, lmtest, fixest, Synth, sandwich)
 
 
@@ -267,6 +266,90 @@ coeftest(es_c, vcov. = es_c_cluster)
 What happens + explanation
 
 (e)
+
+(f) Building off the event study regression from part (c), estimate the interaction weighted event study estimator from Sun and Abraham (2020) (discussed in lecture and posted on bCourses for refrence). As a reminder, the interacted event study regression takes the standard event time indicators (without any binning) and interacts each one with a cohort indicator (a cohort refers to a group of states that share the same date on which they were first treated). You then form the estimate for event time coefficient $\tau_j$ by averaging the estimates of the cohort-specific $\tau_j$ using the weights described in Sun and Abraham (2020).
+
+```{r}
+## f interaction weighted
+# get cohorts
+traf_pt1[event_time==0,cohort:=year]
+traf_pt1[,cohort:= lapply(.SD, function(x) replace(x, is.na(x), mean(x, na.rm=T))), .SDcols = "cohort", by = state]
+traf_pt1[is.na(cohort), cohort:=2103]
+# get dummy for each cohort
+traf_pt1 <- traf_pt1[,dummy_cols(traf_pt1, select_columns = c("cohort"))]
+cohort_cols <- names(traf_pt1[,cohort_1984:cohort_2003]) # get list of bin event time columns
+
+traf_reg_iw <- traf_pt1[,c("ln_fat_pc", "state", "event_time", "cohort", "year",..event_time_cols,..cohort_cols)]
+traf_reg_iw[,state:=factor(state)]
+traf_reg_iw[,year:=factor(year)]
+
+# get interactions
+reg_iw_interactions <- function(x) {
+  
+  dt <- traf_reg_iw[cohort==x,]
+  min_et <- 1981 - x # min interaction
+  max_et <- 2003 - x # max interaction
+  
+  # don't create interactions for never treated
+  if (x != 2103) {
+    # loop through all in between min and max
+    for (i in min_et:max_et) {
+      dt[, glue("int_{x}_{i}") := eval(as.name(glue("event_time_{i}"))) * eval(as.name(glue("cohort_{x}")))]
+    }
+  }
+  
+  else {
+  }
+  
+  return(dt)
+}
+
+cohorts <- unique(traf_reg_iw$cohort) # unique cohorts
+int_dt_list <- lapply(cohorts, reg_iw_interactions) # lapply through all cohorts
+int_dt <- rbindlist(int_dt_list, fill = T) # get as table
+int_cols <- names(int_dt[,grep("int", names(int_dt)), with = F])
+int_dt[,(int_cols):= lapply(.SD, function(x) replace(x, is.na(x), 0)), .SDcols = int_cols]
+traf_reg_iw_final <-  int_dt[,c("ln_fat_pc", "state", "year",..int_cols)]
+
+# run regression. omitted cohort is never treated. omitted event time is -1
+es_iw <- lm(ln_fat_pc ~. - `int_2000_-1` - `int_1993_-1` - `int_1986_-1` - `int_2003_-1` -
+              `int_1996_-1` - `int_1998_-1` - `int_1987_-1` - `int_1984_-1` - `int_1991_-1` - `int_2002_-1`, 
+            data = traf_reg_iw_final)
+
+# get results
+iw_tab <- data.table(tidy(coeftest(es_iw)))
+iw_tab <- iw_tab[grep("int", term),]
+iw_tab[, cohort := as.numeric(str_extract(iw_tab$term, "([0-9]{4})"))]
+iw_tab[, event_time := -1*as.numeric(str_match(iw_tab$term, "_-([0-9]{1,2})")[,2])]
+iw_tab[is.na(event_time), event_time := as.numeric(str_match(iw_tab[is.na(event_time),term], "([0-9]{1,2})$")[,2])]
+
+# get number of states
+state_dt <- traf_pt1[,.(cohort = mean(cohort)), by = state]
+state_dt <- state_dt[,.(num_states = .N), by = cohort]
+
+iw_tab_merge <- merge(iw_tab, state_dt, by = "cohort")
+# weighted average across cohorts
+iw_tab_weight1 <- iw_tab_merge[,.(estimate = weighted.mean(estimate, w = num_states),
+                                  num_states = .N), by = event_time]
+# weighted average for t < -5 and t > 5
+iw_tab_weight1[,time_bin := event_time]
+iw_tab_weight1[event_time < -5,time_bin := -6]
+iw_tab_weight1[event_time > 5,time_bin := 6]
+
+iw_tab_weight2 <- iw_tab_weight1[,.(estimate = weighted.mean(estimate, w = num_states)), by = time_bin]
+
+# plot
+ggplot(data=iw_tab_weight2, aes(x=time_bin, y=estimate)) +
+  geom_point() +
+  geom_point(aes(x=-1, y=0), colour="black") +
+  geom_hline(yintercept=0, colour="black") +
+  geom_vline(xintercept = -1, colour = "red", linetype = "dashed") +
+  xlab("Event Time") +
+  ylab("Estimate") +
+  ggtitle("Interaction Weighted Event Study") +
+  theme_bw()
+
+```
 
 
 # Question 2
