@@ -26,12 +26,12 @@ library(pacman)
 library(zoo)
 library(haven)
 p_load(coefplot, data.table, dplyr, foreign, readstata13, tidyr, xtable, broom, stringr, glue,
-       ggplot2, stats, FNN, fastDummies, fixest, parallel, plm, lmtest, fixest, Synth, sandwich)
+       ggplot2, stats, FNN, fastDummies, fixest, parallel, plm, lmtest, fixest, Synth, sandwich, SCtools)
 
 
 # Directory 
-# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
-base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+# base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
 # base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 # base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
@@ -385,50 +385,315 @@ ggplot(data=iw_tab_weight2, aes(x=time_bin, y=estimate)) +
 
 We now apply the synthetic control methods from Abadie et al (2010).
 
-(a)
+(a) Please use the aggregate "treatment" state (a population weighted average of the first 4 states to have a primary seatbelt law: CT, IA, NM, TX) as the treatment unit (TU) in the synthetic control analysis. 
 
 i. Compare the average pre-period log traffic fatalities per capita of the TU site to that of the average of all the “control” states. Next, graph the pre-period log traffic fatalities by year for the pre-period for both the TU and the average of the control group. Interpret.
 
+\bigskip
+
 ```{r}
-# #Create a treatment status variable that = 1 if state is CT, IA, NM, or TX and =0 otherwise. 
-# traffic[,treat := ifelse(state_name == "CT" | state_name == "IA"|state_name == "NM" | state_name == "TX" |state == 99, 1, 0)]
-# 
-# traffic_TU <- traffic[treat == 0 | state == 99,]
-# #Change treatment variable to a factor variable
-# traffic_TU$treat <- as.factor(traffic$treat)
-# 
-# #Create log fatalities per capita variable
-# traffic_TU[, ln_fat_pc := log(fatalities/population)]
-# 
-# #Compare the average pre-period log traffic fatalities per capita between treatment and control
-# premeanT <- mean(traffic_TU[treat == 1 & year<1986, ln_fat_pc]) #mean pre-period log traffic fatalities in treatment
-# premeanC <- mean(traffic_TU[treat == 0 & year<1986, ln_fat_pc]) #mean pre-period log traffic fatalities in control
-# 
-# #Create variable of mean log traffic fatalities by treatment status by year
-# traffic_TU[, mean_lnfat_treat := lapply(.SD, mean), .SDcols = c("ln_fat_pc"), by = c("treat","year")] 
-# 
-# #Graph the mean pre-period log traffic fatalities by year for Treatment vs Control
-# traffic_TU[year < 1986,] %>%
-#   ggplot(aes(x=year, y = mean_lnfat_treat, group = treat, color = treat)) + 
-#   geom_line() +
-#   theme_minimal() +
-#   labs(title = "Average Pre-Period Log Traffic Fatalities by Year", x = "Year", y = "Log Traffic Fatalities Per Capita", color = element_blank()) +
-#   theme(plot.title = element_text(hjust = 0.5)) +
-#   scale_color_manual(labels = c("Controls", "TU"), values = c("coral1", "cyan3"))
+traffic <- as.data.table(read_dta(paste0(base_directory, "traffic_safety2.dta")))
+
+#Create a treatment status variable that = 1 if state is CT, IA, NM, or TX and =0 otherwise. 
+traffic[,treat := ifelse(state_name == "CT" | state_name == "IA"|state_name == "NM" | state_name == "TX" |state == 99, 1, 0)]
+
+controls <- traffic[primary == 0 & year == 2003,state] #select states that never pass a primary seat belt law to serve as potential controls
+
+traffic_SYM <- traffic[traffic$state %in% controls | state == 99,] #Create new data table with only the potential controls and the TU
+
+#Set state_name for state 99 to TU
+traffic_SYM[state == 99, state_name := "TU"]
+
+#Change treatment variable to a factor variable
+traffic_SYM$treat <- as.factor(traffic_SYM$treat)
+
+#Create log fatalities per capita variable
+traffic_SYM[, ln_fat_pc := log(fatalities/population)]
+
+# Create log covariates
+traffic_SYM[,ln_unemploy := log(unemploy)]
+traffic_SYM[,ln_totalvmt := log(totalvmt)]
+traffic_SYM[,ln_precip := log(precip)]
+traffic_SYM[,ln_snow := log(snow32+0.01)] # to avoid NA from zeroes
+
+#Compare the average pre-period log traffic fatalities per capita between treatment and control
+premeanT <- mean(traffic_SYM[treat == 1 & year<1986, ln_fat_pc]) #mean pre-period log traffic fatalities in treatment
+premeanC <- mean(traffic_SYM[treat == 0 & year<1986, ln_fat_pc]) #mean pre-period log traffic fatalities in control
+
+#Create variable of mean log traffic fatalities by treatment status by year
+traffic_SYM[, mean_lnfat_treat := lapply(.SD, mean), .SDcols = c("ln_fat_pc"), by = c("treat","year")] 
+
+#Graph the mean pre-period log traffic fatalities by year for Treatment vs Control
+traffic_SYM[year < 1986,] %>%
+  ggplot(aes(x=year, y = mean_lnfat_treat, group = treat, color = treat)) + 
+  geom_line() +
+  theme_minimal() +
+  labs(title = "Average Pre-Period Log Traffic Fatalities by Year", x = "Year", y = "Log Traffic Fatalities Per Capita", color = element_blank()) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_color_manual(labels = c("Controls", "TU"), values = c("coral1", "cyan3"))
 
 ```
 
-The average pre-period log traffic fatalities per capita in our aggregate treatment unit is premean t compared with premean c  in our control states. Graphically, we can see that while log traffic fatalities per capita are declining over time in both groups, treatment units have on average higher traffic fatalities per capita than control units in all pre-period years. This makes sense since states with higher traffic fatalities may make reducing traffic fatalities a bigger policy priority, leading to a higher likelihood of implementing seat belt laws.  
+The average pre-period log traffic fatalities per capita in our aggregate treatment unit is `r round(premeanT,2)` compared with `r round(premeanC,2)` in our control states. Graphically, we can see that while log traffic fatalities per capita are declining over time in both groups, treatment units have on average higher traffic fatalities per capita than control units in all pre-period years. This makes sense since states with higher traffic fatalities are more likely to take steps to reduce such fatalities, leading to a higher likelihood of implementing seat belt laws.  
+
+\bigskip
+
+ii. Compare the dependent variable between the TU and each control state for the year before the treatment. Which control state best matches the TU? Now compare this state's covariates with the TU covariates. Do they appear similar? What might this imply in terms of using this state as the counterfactual state? 
+
+\bigskip
 
 ```{r}
 #generate a variable that is the absolute value of the difference between the dependent variable of the TU site and each control state for the year before treatment 
-# TU_dep_1985 <- traffic_TU[state == 99 & year == 1985, ln_fat_pc]
-# traffic_TU[year == 1985,compare_dep := abs(ln_fat_pc - TU_dep_1985)]
-# View(traffic_TU[compare_dep == min(traffic_TU$compare_dep),.(state, state_name)])
-# apply(traffic_TU[year == 1985,ln_fat_pc])
+TU_dep_1985 <- traffic_SYM[state == 99 & year == 1985, ln_fat_pc] #1985 log traffic fatalities per capita for TU
+traffic_SYM[year == 1985 & state != 99,compare_dep := abs(ln_fat_pc - TU_dep_1985)]
+traffic_SYM[is.na(compare_dep), compare_dep := 999]
+control <- traffic_SYM[compare_dep == min(traffic_SYM$compare_dep),state] #WV best matches the TU
+
+#Compare average of WV's covariates to TU's covariates in pre-period
+avg_comparisons <- data.table(covariates = colnames(traffic_SYM[,c(3:4, 7:13, 17)]), WV_avg = colMeans(traffic_SYM[state == 47 & year < 1986,c(3:4, 7:13, 17)]), TU_avg = colMeans(traffic_SYM[state == 99 & year < 1986, c(3:4, 7:13, 17)]))
+avg_comparisons[,c("WV_avg", "TU_avg")] <- round(avg_comparisons[,c("WV_avg", "TU_avg")], 2) #round numeric values to 2 decimal places
+
+avg_comparisons
 
 ```
 
+\bigskip
+When we compare log traffic fatalities per capita in 1985 (the year before treatment), we find that West Virginia is the state closest to the TU. We then compare the average pre-period values for various covariates between West Virginia and TU in the table above and find that the two are not very comparable. For example, West Virginia has on average a lower percentage of college grads, per capita beer consumption, population, and total vehicle miles traveled (VMT) than the TU and on average higher unemployment, precipitation, and snowfall. This suggests that West Virginia is not a good counterfactual state since it differs from the TU systematically in the pre-period. 
 
+\bigskip
 
+(b) Apply the synthetic control method using the available covariates and pre-treatment outcomes to construct a synthetic control group.
 
+\bigskip
+i. Discuss the synthetic control method including its benefits and potential drawbacks. 
+
+\bigskip
+Compared to a diff-in-diff estimator, the synthetic control estimator has the benefit of providing a more rigorous, less ad-hoc way of selecting control units from a large pool of potential controls. Unlike the diff-in-diff estimator, the synthetic control estimator also does not reply on the assumption of parallel preimplementation trends.  A key advantage is that a synthetic control estimator controls for both observed and unobserved unit-by-time shocks, whereas a diff-in-diff estimator only controls for observed unit-by-time shocks. To see this intuitively, note that only units that are similar in both observed and unobserved determinants of the outcome variable and in the effect of those determinants on the outcome variable will produce similar trajectories of the outcome variable over extended periods of time (Abadie et al. 2010). With a synthetic controls estimator, we can also leverage the large pool of potential controls to conduct permutation-based inference.  
+
+\bigskip
+
+One drawback, however, is that the credibility of the synthetic controls method relies on achieving a good preimplementation fit for the outcome of interest between treated unit and synthetic control, which is difficult if the treated unit is an outlier. This also necessitates having enough data on the outcome and covariate variables for the treated unit and a suitable pool of comparison units over a significant period of time. Furthermore, judging whether there is a good fit is more of an art than a science, as there is currently no consensus on what constitutes a "good fit." A related drawback is that the synthetic control units need to match the treated unit on both levels and trends. Thus, if there are control units that are only a good match for the trends but not the levels, or vice versa, then we may be discarding control units that satisfy the parallel trends assumption because they do not match the baseline levels. We also need to assume that there are no shocks that affect the treated unit differentially than the potential control units and that there are no spillovers of the treatment effect from the treated unit into the control units, although these are also necessary assumptions for a diff-in-diff estimator. 
+
+\bigskip
+ii. Use the software package provided by Abadie et al. to apply the synthetic control method. Please be sure to state precisely what the command is doing and how you determined your preferred specification. 
+
+\bigskip
+
+We use the R package "Synth" to implement the synthetic control method. Synth constructs a synthetic control group by searching for a weighted combination of control units chosen to approximate the treated unit (TU) in terms of characteristics that are predictive of the outcome. Synth requires us to supply four matrices as its main arguments, XO, X1, Z1, and Z0. X1 and X0 contain the predictor values for the TU and the control units respectively. Similarly, Z1 and Z0 contain the outcome variable for the pre-intervention period for the TU and the control units respectively. The command "dataprep" allows us to create the matrices X1, X0, Z1, and Z0. The command "synth" is then used to construct the synthetic control group, where weights are assigned to the control units to minimize the mean squared prediction error (MSPE) over the pre-intervention time period (in our case 1981-1985). We then use the command "gaps.plot" to plot the gaps in the trajectories of the outcome variable for the TU and the constructed synthetic control group. 
+
+```{r}
+
+## Specification A
+dataprep.outA <- dataprep(foo = traffic_SYM,
+                         predictors = c("college","unemploy","totalvmt","precip"),
+                         predictors.op = "mean",
+                         dependent = "ln_fat_pc",
+                         unit.variable = "state",
+                         time.variable = "year",
+                         special.predictors = list(
+                            list("ln_fat_pc", 1981, "mean"),
+                            list("ln_fat_pc", 1983, "mean"),
+                            list("ln_fat_pc", 1985, "mean")),
+                         treatment.identifier = 99,
+                         controls.identifier = controls,
+                         time.predictors.prior = c(1981:1985),
+                         time.optimize.ssr = c(1981:1985),
+                         unit.names.variable = "state_name",
+                         time.plot = 1981:2003
+                         )
+# synth command identifies weights to construct the synthetic control 
+synth.outA <- synth(dataprep.outA)
+
+# plot the gaps (treated - synthetic)
+gaps.plot(dataprep.res = dataprep.outA,
+          synth.res = synth.outA,
+          Ylab = "Gap: Treated - Synthetic",
+          Xlab = "Year",
+          Main = "Specification A")
+
+## Specification B - Include more covariates and log of covariates
+dataprep.outB <- dataprep(foo = traffic_SYM,
+                         predictors = c("college","ln_unemploy","ln_totalvmt","ln_precip", "beer", "population", "ln_snow"),
+                         predictors.op = "mean",
+                         dependent = "ln_fat_pc",
+                         unit.variable = "state",
+                         time.variable = "year",
+                         special.predictors = list(
+                            list("ln_fat_pc", 1981, "mean"),
+                            list("ln_fat_pc", 1983, "mean"),
+                            list("ln_fat_pc", 1985, "mean")),
+                         treatment.identifier = 99,
+                         controls.identifier = controls,
+                         time.predictors.prior = c(1981:1985),
+                         time.optimize.ssr = c(1981:1985),
+                         unit.names.variable = "state_name",
+                         time.plot = 1981:2003
+                         )
+
+# synth command identifies weights to construct the synthetic control 
+synth.outB <- synth(dataprep.outB)
+
+# plot the gaps (treated - synthetic)
+gaps.plot(dataprep.res = dataprep.outB,
+          synth.res = synth.outB,
+          Ylab = "Gap: Treated - Synthetic",
+          Xlab = "Year",
+          Main = "Specification B")
+
+## Specification C - include more covariates and more "special predictors" (Preferred Specification)
+dataprep.outC <- dataprep(foo = traffic_SYM,
+                         predictors = c("college","ln_unemploy","ln_totalvmt","ln_precip", "beer", "population", "ln_snow"),
+                         predictors.op = "mean",
+                         dependent = "ln_fat_pc",
+                         unit.variable = "state",
+                         time.variable = "year",
+                         special.predictors = list(
+                            list("ln_fat_pc", 1981, "mean"),
+                            list("ln_fat_pc", 1983, "mean"),
+                            list("ln_fat_pc", 1984, "mean"),
+                            list("ln_fat_pc", 1985, "mean")),
+                         treatment.identifier = 99,
+                         controls.identifier = controls,
+                         time.predictors.prior = c(1981:1985),
+                         time.optimize.ssr = c(1981:1985),
+                         unit.names.variable = "state_name",
+                         time.plot = 1981:2003
+                         )
+# run the synth command to identify weights
+synth.outC<- synth(dataprep.outC)
+
+# plot the gaps (treated - synthetic)
+gaps.plot(dataprep.res = dataprep.outC,
+          synth.res = synth.outC,
+          Ylab = "Gap: Treated - Synthetic",
+          Xlab = "Year",
+          Main = "Specification C - Preferred Specification")
+
+```
+
+\bigskip
+
+We run the synthetic control method for a variety of specifications, varying which variables we include as control variables and varying the number of "special predictors" (i.e. the mean of the outcome variable in chosen pre-intervention years) we include. Our preferred specification is specification "C", which includes the most covariates and "special predictors," since the gap between the TU and the synthetic control in the pre-intervention period is modestly closer to 0 with this specification, particularly in the years closest to the treatment year. 
+
+\bigskip
+(c) Graphical interpretation and treatment significance
+
+\bigskip
+i. Generate graphs plotting the gap between the TU and the synthetic control group under both your preferred specification and a few other specifications you tried.
+
+\bigskip
+
+```{r,include=FALSE, cache = TRUE}
+## Specification A
+
+## run the generate.placebos command to reassign treatment status
+## to each unit listed as control, one at a time, and generate their
+## synthetic versions. Sigf.ipop = 2 for faster computing time. 
+## Increase to the default of 5 for better estimates. 
+tdfA <- generate.placebos(dataprep.outA,
+                  synth.outA,
+                  Sigf.ipop = 2,
+                  strategy = "sequential"
+                  )
+
+## Specification B
+tdfB <- generate.placebos(dataprep.outB,
+                  synth.outB,
+                  Sigf.ipop = 2,
+                  strategy = "sequential"
+                  )
+
+## Specification C - Preferred Specification
+tdfC <- generate.placebos(dataprep.outC,
+                  synth.outC,
+                  Sigf.ipop = 2,
+                  strategy = "sequential"
+                  )
+```
+```{r, include = TRUE}
+## Plot the gaps in outcome values over time of each unit --
+# treated and placebos -- to their synthetic controls
+
+#Specification A
+pA <- plot_placebos(tdfA,
+                  discard.extreme=FALSE, 
+                  mspe.limit=20,
+                  title = "Specification A",
+                  xlab='Year',
+                  ylab='Gap in per capita log fatalities',
+                  alpha.placebos = 1)
+pA
+
+#Specification B
+pB <- plot_placebos(tdfB,
+                  discard.extreme=FALSE, 
+                  mspe.limit=20,
+                  title = "Specification B",
+                  xlab='Year',
+                  ylab='Gap in per capita log fatalities',
+                  alpha.placebos = 1)
+pB
+
+#Specification C - Preferred Specification
+pC <- plot_placebos(tdfC,
+                  discard.extreme=FALSE, 
+                  mspe.limit=20, 
+                  title = "Specification C - Preferred Specification",
+                  xlab='Year',
+                  ylab='Gap in per capita log fatalities',
+                  alpha.placebos = 1)
+pC
+```
+
+ii. Compare the graph plotting the gap between the TU and the synthetic control group under your preferred specification with the graphs plotting the gap between each control state and its "placebo" treatment. Do you conclude that the treatment was significant? Why or why not?
+
+\bigskip
+
+Comparing the above graphs, we conclude that the treatment was not significant. Since we constructed the synthetic control unit so that it tracked the TU closely in the pre-intervention period, we expect the two units to diverge in the post-intervention period more than in the pre-intervention period by construction, even if there is no treatment effect. When we compare the observed treatment effect to the "placebo" treatment effects for the control states, the treatment effect for the TU is near the middle of the distribution, suggesting that our measured treatment effect could be simply due to chance. If we had randomly picked an untreated state and implemented the same procedure, it is likely we would have found a post-intervention deviation of the observed magnitude or larger. 
+
+\bigskip
+
+iii. Create a graph of the post-treatment/pre-treatment prediction ratios of the Mean Squared Prediction Errors (MSPE) for the actual and "placebo" treatment gaps in (ii). Do you conclude that the treatment was significant? Why or why not?
+
+\bigskip
+
+```{r, warning = FALSE}
+## Specification A
+mspe.plot(tdfA,
+          discard.extreme = TRUE,
+          mspe.limit = 20,
+          plot.hist = TRUE,
+          title = "Specification A",
+          xlab = "Post/Pre MSPE Ratio",
+          ylab = "Frequency"
+          )
+
+## Specification B
+mspe.plot(tdfB,
+          discard.extreme = TRUE,
+          mspe.limit = 20,
+          plot.hist = TRUE,
+          title = "Specification B",
+          xlab = "Post/Pre MSPE Ratio",
+          ylab = "Frequency"
+          )
+
+## Specification C
+mspe.plot(tdfC,
+          discard.extreme = TRUE,
+          mspe.limit = 20,
+          plot.hist = TRUE,
+          title = "Specification C - Preferred Specification",
+          xlab = "Post/Pre MSPE Ratio",
+          ylab = "Frequency"
+          )
+```
+\bigskip
+Based on the above graphs of the Post/Pre MSPE Ratio for our three specifications, we conclude that the treatment was not significant. In our preferred specification (C), 13 control states obtain the same Post/Pre MSPE ratio as the TU or larger. Thus we calculate a p-value of $p = 0.43$ ($13/30$), that is if we were to assign the intervention at random in the data, the probability of obtaining and Post/Pre MSPE ratio as large as the TU's is 0.43. Based on these results, we cannot reject the null hypothesis of no treatment effect. 
+
+\bigskip
+(d) How do your synthetic control results compare to your fixed effects results from Question (3) in the last problem set? Interpret any differences. 
+
+\bigskip
+
+From the last problem set, Q3 Part f, the results from our FE estimator with all covariates indicated that primary seat belt laws are associated with a $8.98\%$ decrease in log fatalities per capita, ceteris paribus, which is statistically significant at the 1\% level. This contrasts with our findings using the synthetic control method, where we cannot reject the null hypothesis that primary seat belt laws have no effect on log fatalities per capita. The difference in results could arise from a few factors. One, the results from our synthetic control model may be less credible if we think our constructed synthetic control does not have a good enough pre-implementation fit. As we can see from part b above, across all of our specifications the gap between the TU and the synthetic control is small (less than 0.1) but not very close to 0, particularly for time periods further away from the implementation year. Two, it could be that our FE estimator suffers from omitted variable bias, whereas our synthetic controls estimator also controls for unobserved state-by-year shocks. If this is the case, then our synthetic controls estimator would be less biased than our FE estimator from the previous problem set. 
