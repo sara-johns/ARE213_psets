@@ -298,6 +298,8 @@ Last problem set, we found that when we add our full set of covariates to the FE
 
 (f) Building off the event study regression from part (c), estimate the interaction weighted event study estimator from Sun and Abraham (2020) (discussed in lecture and posted on bCourses for refrence). As a reminder, the interacted event study regression takes the standard event time indicators (without any binning) and interacts each one with a cohort indicator (a cohort refers to a group of states that share the same date on which they were first treated). You then form the estimate for event time coefficient $\tau_j$ by averaging the estimates of the cohort-specific $\tau_j$ using the weights described in Sun and Abraham (2020).
 
+We estimate the interaction weighted event study estimator below. We first interact a cohort dummy with each event time dummy that is in the range for that cohort (e.g for treatment cohort 2000, the dummy would be interacted with [-19,3]). We then put all of the interactions in a regression, omitting the never treated cohort and the -1 event time. The output of this regression gives us a coefficient for each event time by cohort. We then take a weighted average of the coefficients by event time so that we get one coefficient per event time. The weights are the share that each cohort contributes to the event time (e.g. the number of states in each cohort represented by that event time). We then take the weighted average for times $t < -5$ and $t > 5$ (just represented by -6 and 6 respectively in the graph). Similarly the weights are the share that each event time contributes to the pooled event time (e.g. the number of states for each $t \in [-22,-6]$ and $t \in [6, 19]$). We plot the results and see that they are similar to the results in (c).
+
 ```{r}
 ## f interaction weighted
 # get cohorts
@@ -359,7 +361,7 @@ state_dt <- state_dt[,.(num_states = .N), by = cohort]
 iw_tab_merge <- merge(iw_tab, state_dt, by = "cohort")
 # weighted average across cohorts
 iw_tab_weight1 <- iw_tab_merge[,.(estimate = weighted.mean(estimate, w = num_states),
-                                  num_states = .N), by = event_time]
+                                  num_states = sum(num_states)), by = event_time]
 # weighted average for t < -5 and t > 5
 iw_tab_weight1[,time_bin := event_time]
 iw_tab_weight1[event_time < -5,time_bin := -6]
