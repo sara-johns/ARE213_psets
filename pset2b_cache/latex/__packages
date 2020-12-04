@@ -1,10 +1,4 @@
 base
-methods
-datasets
-utils
-grDevices
-graphics
-stats
 pacman
 zoo
 haven
@@ -22,7 +16,6 @@ glue
 FNN
 fastDummies
 fixest
-parallel
 plm
 lmtest
 Synth

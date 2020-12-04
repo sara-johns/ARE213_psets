@@ -30,9 +30,9 @@ p_load(coefplot, data.table, dplyr, foreign, readstata13, tidyr, xtable, broom, 
 
 
 # Directory 
-base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+#base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
 # base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
-# base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
+base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/"
 # base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
 
 # read data
@@ -481,7 +481,7 @@ ii. Use the software package provided by Abadie et al. to apply the synthetic co
 
 \bigskip
 
-We use the R package "Synth" to implement the synthetic control method. Synth constructs a synthetic control group by searching for a weighted combination of control units chosen to approximate the treated unit (TU) in terms of characteristics that are predictive of the outcome. Synth requires us to supply four matrices as its main arguments, XO, X1, Z1, and Z0. X1 and X0 contain the predictor values for the TU and the control units respectively. Similarly, Z1 and Z0 contain the outcome variable for the pre-intervention period for the TU and the control units respectively. The command "dataprep" allows us to create the matrices X1, X0, Z1, and Z0. The command "synth" is then used to construct the synthetic control group, where weights are assigned to the control units to minimize the mean squared prediction error (MSPE) over the pre-intervention time period (in our case 1981-1985). We then use the command "gaps.plot" to plot the gaps in the trajectories of the outcome variable for the TU and the constructed synthetic control group. 
+We use the R package "Synth" to implement the synthetic control method. Synth constructs a synthetic control group by searching for a weighted combination of control units chosen to approximate the treated unit (TU) in terms of characteristics that are predictive of the outcome. Synth requires us to supply four matrices as its main arguments, X0, X1, Z1, and Z0. X1 and X0 contain the predictor values for the TU and the control units respectively. Similarly, Z1 and Z0 contain the outcome variable for the pre-intervention period for the TU and the control units respectively. The command "dataprep" allows us to create the matrices X1, X0, Z1, and Z0. The command "synth" is then used to construct the synthetic control group, where weights are assigned to the control units to minimize the mean squared prediction error (MSPE) over the pre-intervention time period (in our case 1981-1985). We then use the command "gaps.plot" to plot the gaps in the trajectories of the outcome variable for the TU and the constructed synthetic control group. 
 
 ```{r}
 
@@ -690,7 +690,9 @@ mspe.plot(tdfC,
           ylab = "Frequency"
           )
 ```
+
 \bigskip
+
 Based on the above graphs of the Post/Pre MSPE Ratio for our three specifications, we conclude that the treatment was not significant. In our preferred specification (C), 13 control states obtain the same Post/Pre MSPE ratio as the TU or larger. Thus we calculate a p-value of $p = 0.43$ ($13/30$), that is if we were to assign the intervention at random in the data, the probability of obtaining and Post/Pre MSPE ratio as large as the TU's is 0.43. Based on these results, we cannot reject the null hypothesis of no treatment effect. 
 
 \bigskip
