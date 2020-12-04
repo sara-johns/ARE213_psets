@@ -26,14 +26,15 @@ library(pacman)
 library(zoo)
 library(haven)
 p_load(coefplot, data.table, dplyr, foreign, readstata13, tidyr, xtable, broom, stringr, glue,
-       ggplot2, stats, FNN, fastDummies, fixest, parallel, plm, lmtest, fixest, Synth, sandwich, SCtools)
+       ggplot2, stats, FNN, fastDummies, fixest, parallel, plm, lmtest, fixest, Synth, sandwich,
+       SCtools, ivreg, stargazer)
 
 
 # Directory 
 #base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
 # base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
-base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/pset3/"
-# base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\"
+# base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/pset3/"
+base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\pset3\\"
 
 # read data
 data <- as.data.table(read_dta(paste0(base_directory, "2miledata.dta")))
@@ -123,6 +124,59 @@ We estimate the treatment effect $\hat{\tau} = \hat{\alpha}_r - \hat{\alpha}_l =
 
 # Question 3: First Stage of RD Design
 
+ (a) Use a 2SLS (IV) econometric setup that uses whether or not a census tract has a site scoring above/below 28.5 as the instrument. Write down the 1st stage equation. Run the 1st stage regression experimenting with the same set of covariates used in question (1). In addition, run a second specification in which you limit the sample to only those census tracts with sites between 16.5 and 40.5 and run the specification using all of the control variables (we will use this as the size of the bandwidth for the “regression discontinuity” regression). Interpret the results.
+
+\bigskip
+```{r, include=FALSE}
+data$above_28pt5 <- 0
+data$above_28pt5[data$hrs_82 >= 28.5] <- 1
+```
+
+We can write the first stage as
+$$
+NPL_t = \delta_0 + \delta_1 1(HRS_t \ge 28.5) + \gamma X_t + \nu_t
+$$
+where the instrument for NPL status is whether HRS is above 28.5 and we control for other covariates. Now we estimate this first stage regression, including controls for population density, education (college educated), children, poverty rate, and home characteristics (no full kitchen, 3 or more bedrooms, mobile).
+```{r}
+first_stage <- lm(npl2000 ~ above_28pt5 + pop_den8_nbr + ba_or_better8_nbr + child8_nbr + povrat8_nbr +
+                nofullkitchen80_nbr + bedrms3_80occ_nbr + mobile80occ_nbr,
+              data = data)
+summary(first_stage)
+```
+As expected, having HRS above 28.5 is strongly predictive of NPL status. Now we rerun our IV analysis but focusing on census tracts with HRS between 16.5 and 40.5
+```{r}
+data_narrow <- data[data$hrs_82 >= 16.5 & data$hrs_82 <= 40.5,]
+first_stage <- lm(npl2000 ~ above_28pt5 + pop_den8_nbr + ba_or_better8_nbr + child8_nbr + povrat8_nbr +
+                nofullkitchen80_nbr + bedrms3_80occ_nbr + mobile80occ_nbr,
+              data = data_narrow)
+summary(first_stage)
+```
+Here again the threshold is strongly predictve of NPL status.
+
+\bigskip
+
+ (b) Create a graph plotting the the 1982 HRS score against whether
+a site is listed on the NPL by year 2000 (NPL on the y-axis, HRS
+on the x -axis). Briefly explain and interpret this graph.
+
+```{r}
+(ggplot(data_narrow, aes(x=data_narrow$hrs_82,y=data_narrow$npl2000)) +
+  geom_point(alpha = 0.4) +
+  stat_summary_bin(fun='mean', bins=20,
+                   color='orange', size=2, geom='point'))
+```
+Here the yellow dots are the binned means and the black dots are the observed values. With and HRS score below 28.5, there is still a reasonable change (around 25%) that the site will be added to the NPL. With HRS above 28.5, it is almost guaranteed (the graph shows one exception).
+
+```{r}
+(ggplot(data_narrow, aes(x=data_narrow$hrs_82,y=data_narrow$meanhs8)) +
+  geom_point(alpha = 0.4) +
+  stat_summary_bin(fun='mean', bins=20,
+                   color='orange', size=2, geom='point'))
+```
+There aren't any obvious differences in this range of HRS values. If anything, a higher HRS appears to be correlated with slightly higher housing values, which would cause our estimates to be downward biased, if anything. All in all, the values are largely comparable across this range.
+```{r, include=FALSE}
+rm(first_stage)
+```
 # Question 4: Second Stage of RD Design
 
 # Question 5: Conclusion
