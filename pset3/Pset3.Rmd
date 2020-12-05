@@ -27,14 +27,14 @@ library(zoo)
 library(haven)
 p_load(coefplot, data.table, dplyr, foreign, readstata13, tidyr, xtable, broom, stringr, glue,
        ggplot2, stats, FNN, fastDummies, fixest, parallel, plm, lmtest, fixest, Synth, sandwich,
-       SCtools, ivreg, stargazer)
+       SCtools, ivreg, stargazer, estimatr)
 
 
 # Directory 
-#base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/"
+base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/pset3/"
 # base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
 # base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/pset3/"
-base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\pset3\\"
+# base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\pset3\\"
 
 # read data
 data <- as.data.table(read_dta(paste0(base_directory, "2miledata.dta")))
@@ -86,7 +86,8 @@ ggplot(data, aes(x = hrs_82)) +
   scale_x_continuous(breaks = seq(0,75,5)) +
   xlab("Density of 1982 HRS scores") +
   ylab("Frequency") +
-  ggtitle("Density of Running Variable around the Threshold")
+  ggtitle("Density of Running Variable around the Threshold") +
+  theme_bw()
 
 ## Run local linear regressions on either side of threshold, using the midpoints of the bins as the data
 
@@ -134,7 +135,7 @@ data$above_28pt5[data$hrs_82 >= 28.5] <- 1
 
 We can write the first stage as
 $$
-NPL_t = \delta_0 + \delta_1 1(HRS_t \ge 28.5) + \gamma X_t + \nu_t
+NPL_i = \delta_0 + \delta_1 1(HRS_i \ge 28.5) + \gamma X_i + \nu_i
 $$
 where the instrument for NPL status is whether HRS is above 28.5 and we control for other covariates. Now we estimate this first stage regression, including controls for population density, education (college educated), children, poverty rate, and home characteristics (no full kitchen, 3 or more bedrooms, mobile).
 ```{r}
@@ -163,7 +164,11 @@ on the x -axis). Briefly explain and interpret this graph.
 (ggplot(data_narrow, aes(x=data_narrow$hrs_82,y=data_narrow$npl2000)) +
   geom_point(alpha = 0.4) +
   stat_summary_bin(fun='mean', bins=20,
-                   color='orange', size=2, geom='point'))
+                   color='orange', size=2, geom='point')) +
+  geom_vline(xintercept=28.5, linetype="dashed") +
+  ylab("NPL Status in 2000") +
+  xlab("HRS Scores in 1982") +
+  theme_bw()
 ```
 Here the yellow dots are the binned means and the black dots are the observed values. With and HRS score below 28.5, there is still a reasonable change (around 25%) that the site will be added to the NPL. With HRS above 28.5, it is almost guaranteed (the graph shows one exception).
 
@@ -171,12 +176,47 @@ Here the yellow dots are the binned means and the black dots are the observed va
 (ggplot(data_narrow, aes(x=data_narrow$hrs_82,y=data_narrow$meanhs8)) +
   geom_point(alpha = 0.4) +
   stat_summary_bin(fun='mean', bins=20,
-                   color='orange', size=2, geom='point'))
+                   color='orange', size=2, geom='point')) +
+  geom_vline(xintercept=28.5, linetype="dashed") +
+  ylab("Mean Household Prices in 1980") +
+  xlab("HRS Score 1982") +
+  theme_bw()
 ```
 There aren't any obvious differences in this range of HRS values. If anything, a higher HRS appears to be correlated with slightly higher housing values, which would cause our estimates to be downward biased, if anything. All in all, the values are largely comparable across this range.
 ```{r, include=FALSE}
 rm(first_stage)
 ```
+
 # Question 4: Second Stage of RD Design
+
+Write down the 2nd stage equation (with housing values as the outcome) and the 2 standard assumptions for valid IV estimation. Run 2SLS to get the estimated coefficient on 2000 NPL status. Run the same two specifications as in the previous question. Briefly interpret the results.
+
+\bigskip
+
+The 2nd stage equation is 
+
+$$ P_{i} = \beta_0 + \beta_1 \hat{NPL_i} + \psi X_i + \varepsilon_i$$
+where $P_i$ is the logged mean housing price in 2000, $\hat{NPL_i}$ are the fitted values from the first stage, and the set of covariates is the same as in the first stage. The two assumptions for valid IV estimation are: 1) $Cov(z_i, d_i) \neq 0$ (relevance of the instrument) which our first stage showed we satisfy, and 2) $Cov(z_i, \epsilon_i)$ (exogeneity) which the facts and discussion in question 2 suggest we satisfy. We estimate the 2SLS regression for the full dataset and for a subset of census tracts with sites between 16.5 and 40.5. 
+
+```{r}
+iv_reg_full <- iv_robust(lnmdvalhs0_nbr~ npl2000 + pop_den8_nbr + ba_or_better8_nbr + child8_nbr + povrat8_nbr +
+                nofullkitchen80_nbr + bedrms3_80occ_nbr + mobile80occ_nbr |
+                  above_28pt5 + pop_den8_nbr + ba_or_better8_nbr + child8_nbr + povrat8_nbr +
+                nofullkitchen80_nbr + bedrms3_80occ_nbr + mobile80occ_nbr, 
+                data = data, se_type = "HC1")
+summary(iv_reg_full, digits=4)
+```
+
+
+
+```{r}
+iv_reg_narrow <- iv_robust(lnmdvalhs0_nbr ~ npl2000 + pop_den8_nbr + ba_or_better8_nbr + child8_nbr + povrat8_nbr +
+                nofullkitchen80_nbr + bedrms3_80occ_nbr + mobile80occ_nbr |
+                  above_28pt5 + pop_den8_nbr + ba_or_better8_nbr + child8_nbr + povrat8_nbr +
+                nofullkitchen80_nbr + bedrms3_80occ_nbr + mobile80occ_nbr, 
+                data = data_narrow, se_type = "HC1")
+summary(iv_reg_narrow, digits = 4)
+
+```
 
 # Question 5: Conclusion
