@@ -397,19 +397,16 @@ We estimate the treatment effect $\hat{\tau} = \hat{\alpha}_r - \hat{\alpha}_l =
 ```{r, include=FALSE}
 data$above_28pt5 <- 0
 data$above_28pt5[data$hrs_82 >= 28.5] <- 1
-
-data[,hrs_min_thresh := hrs_82 - 28.5]
-data[,hrs_min_thresh_in := hrs_min_thresh * above_28pt5]
 ```
 
 We can write the first stage as
 $$
-NPL_i = \delta_0 + \delta_1 1(HRS_i \ge 28.5) + \delta_2 (HRS_i - c) + \delta_3 (HRS_i - c) 1(HRS_i \ge 28.5) + \gamma X_i + \nu_i
+NPL_i = \delta_0 + \delta_1 1(HRS_i \ge 28.5) + \gamma X_i + \nu_i
 $$
-where the instrument for NPL status is whether HRS is above 28.5, we control for the running variable and other covariates, and we allow the slopes to vary on either side of the threshold. Now we estimate this first stage regression, including the full set of controls used in the fourth regression in question 1. 
+where the instrument for NPL status is whether HRS is above 28.5 and we control for covariates, including state fixed effects. Now we estimate this first stage regression, including the full set of controls used in the fourth regression in question 1. 
 
 ```{r}
-first_stage <- feols(npl2000 ~ above_28pt5 + hrs_min_thresh + hrs_min_thresh_in + lnmeanhs8_nbr + tothsun8_nbr + ownocc8_nbr + firestoveheat80_nbr +
+first_stage <- feols(npl2000 ~ above_28pt5 + lnmeanhs8_nbr + tothsun8_nbr + ownocc8_nbr + firestoveheat80_nbr +
             noaircond80_nbr + nofullkitchen80_nbr + zerofullbath80_nbr + bedrms0_80occ_nbr + bedrms1_80occ_nbr +
             bedrms2_80occ_nbr + bedrms3_80occ_nbr + bedrms4_80occ_nbr + blt0_1yrs80occ_nbr +
             blt2_5yrs80occ_nbr + blt6_10yrs80occ_nbr + blt10_20yrs80occ_nbr + blt20_30yrs80occ_nbr + 
@@ -422,7 +419,7 @@ summary(first_stage, se = "white")
 As expected, having HRS above 28.5 is strongly predictive of NPL status. Now we rerun our first stage but focusing on census tracts with HRS between 16.5 and 40.5, which had shown the most balance across covariates in question 1b.
 ```{r}
 data_narrow <- data[data$hrs_82 >= 16.5 & data$hrs_82 <= 40.5,]
-first_stage <- feols(npl2000 ~ above_28pt5 + hrs_min_thresh + hrs_min_thresh_in + lnmeanhs8_nbr + tothsun8_nbr + ownocc8_nbr + firestoveheat80_nbr +
+first_stage <- feols(npl2000 ~ above_28pt5 + lnmeanhs8_nbr + tothsun8_nbr + ownocc8_nbr + firestoveheat80_nbr +
             noaircond80_nbr + nofullkitchen80_nbr + zerofullbath80_nbr + bedrms0_80occ_nbr + bedrms1_80occ_nbr +
             bedrms2_80occ_nbr + bedrms3_80occ_nbr + bedrms4_80occ_nbr + blt0_1yrs80occ_nbr +
             blt2_5yrs80occ_nbr + blt6_10yrs80occ_nbr + blt10_20yrs80occ_nbr + blt20_30yrs80occ_nbr + 
@@ -478,11 +475,15 @@ Write down the 2nd stage equation (with housing values as the outcome) and the 2
 
 The 2nd stage equation is 
 
-$$ P_{i} = \beta_0 + \beta_1 \hat{NPL_i} + \beta_2 (HRS_i - c) + \beta_3 (HRS_i - c)1(HRS_i \ge 28.5) + \psi X_i + \varepsilon_i$$
-where $P_i$ is the logged median housing price in 2000, $\hat{NPL_i}$ are the fitted values from the first stage, and the set of covariates is the same as in the first stage. The two assumptions for valid IV estimation are: 1) $Cov(z_i, d_i) \neq 0$ (relevance of the instrument) which our first stage showed we satisfy, and 2) $Cov(z_i, \epsilon_i)$ (exogeneity) which the facts and discussion in question 2 suggest we satisfy. We estimate the 2SLS regression for the full dataset and for a subset of census tracts with HRS scores between 16.5 and 40.5. 
+$$ P_{i} = \beta_0 + \beta_1 \hat{NPL_i} + \psi X_i + \varepsilon_i$$
+where $P_i$ is the logged median housing price in 2000, $\hat{NPL_i}$ are the fitted values from the first stage, and the set of covariates is the same as in the first stage. The two assumptions for valid IV estimation are: 1) $Cov(z_i, d_i) \neq 0$ (relevance of the instrument) which our first stage showed we satisfy, and 2) $Cov(z_i, \epsilon_i)$ (exogeneity) which the facts and discussion in question 2 suggest we satisfy. We estimate the 2SLS regression for the full dataset and for a subset of census tracts with HRS scores between 16.5 and 40.5. Note, we could instead estimate the reduced-form regression 
+
+$$P_{i} = \pi_0 + \pi_1 1(HRS_i \ge 28.5) + \mu X_i + u_i $$
+
+and then divide $\hat{pi_1}$ by our first stage coefficient $\hat{\delta_1}$. This will be equivalent to the 2SLS coefficent $\hat{\beta_1}$ and for ease of calculating standard errors, we will do 2SLS here using the package iv_robust. 
 
 ```{r}
-iv_reg_full <- iv_robust(lnmdvalhs0_nbr~ npl2000 + hrs_min_thresh + hrs_min_thresh_in + lnmeanhs8_nbr + tothsun8_nbr + ownocc8_nbr + firestoveheat80_nbr +
+iv_reg_full <- iv_robust(lnmdvalhs0_nbr~ npl2000 + lnmeanhs8_nbr + tothsun8_nbr + ownocc8_nbr + firestoveheat80_nbr +
             noaircond80_nbr + nofullkitchen80_nbr + zerofullbath80_nbr + bedrms0_80occ_nbr + bedrms1_80occ_nbr +
             bedrms2_80occ_nbr + bedrms3_80occ_nbr + bedrms4_80occ_nbr + blt0_1yrs80occ_nbr +
             blt2_5yrs80occ_nbr + blt6_10yrs80occ_nbr + blt10_20yrs80occ_nbr + blt20_30yrs80occ_nbr + 
@@ -496,7 +497,7 @@ summary(iv_reg_full, digits=4)
 
 
 ```{r}
-iv_reg_narrow <- iv_robust(lnmdvalhs0_nbr~ npl2000 + hrs_min_thresh + hrs_min_thresh_in + lnmeanhs8_nbr + tothsun8_nbr + ownocc8_nbr + firestoveheat80_nbr +
+iv_reg_narrow <- iv_robust(lnmdvalhs0_nbr~ npl2000 + lnmeanhs8_nbr + tothsun8_nbr + ownocc8_nbr + firestoveheat80_nbr +
             noaircond80_nbr + nofullkitchen80_nbr + zerofullbath80_nbr + bedrms0_80occ_nbr + bedrms1_80occ_nbr +
             bedrms2_80occ_nbr + bedrms3_80occ_nbr + bedrms4_80occ_nbr + blt0_1yrs80occ_nbr +
             blt2_5yrs80occ_nbr + blt6_10yrs80occ_nbr + blt10_20yrs80occ_nbr + blt20_30yrs80occ_nbr + 
@@ -514,4 +515,4 @@ Unlike our results in question 1, both of our 2SLS estimations yield a coefficie
 
 ## Question 5: Conclusion
 
-In question 1, we ran 4 different OLS specifications with different sets of covariates and found that NPL status in 2000 had a statistically significant effect of between 4 and 7\% on median housing values in 2000. As discussed in question 1a, these estimates would be unbiased if the conditional independence assumption held. However, Table 1 showed that there are systematic differences between census tracts with an NPL designation and those without, which may suggest that there are also a number of unobserved differences between the two tracts. Therefore, we would be concerned that NPL status is not randomly assigned conditional on observables and our OLS regressions may be biased. Tables 2 and 3 then looked at the difference in covariates between census tracts above and below the HRS score cut-off. These census tracts were more balanced, specifically in the smaller bandwidth shown in Table 3, which suggests that HRS score is likely a better randomly assigned treatment. In question 2, we evaluate the validity of an RD design. We conclude that based on the facts about how HRS score is assigned, our density plot, and our local linear regressions, that HRS score is a valid research design. In question 3, our regressions show that HRS score is a strong instrument for NPL status and that we are indeed in a fuzzy RD research design. Finally, we run 2SLS in question 4, with the HRS threshold as an instrument for NPL status. The coefficient on NPL status is not statistically different from zero so we cannot reject that there is no effect on housing prices from being designated NPL. This is very different from the regressions in question 1 which suggested a statisticlaly significant positive effect of NPL status. In fact, the coefficients in both 2SLS regressions were negative and the confidence intervals suggest that the effect of NPL status ranges from -11\% to 0.02\%. It could be plausible that the effect would be negative if NPL status provides previously unknown information to homeowners and home buyers about the environmental quality near a house. The difference in results between question 1 and question 4 show the importance of research design and using an exogenous treatment.
+In question 1, we ran 4 different OLS specifications with different sets of covariates and found that NPL status in 2000 had a statistically significant effect of between 4 and 7\% on median housing values in 2000. As discussed in question 1a, these estimates would be unbiased if the conditional independence assumption held. However, Table 1 showed that there are systematic differences between census tracts with an NPL designation and those without, which may suggest that there are also a number of unobserved differences between the two tracts. Therefore, we would be concerned that NPL status is not randomly assigned conditional on observables and our OLS regressions may be biased. Tables 2 and 3 then looked at the difference in covariates between census tracts above and below the HRS score cut-off. These census tracts were more balanced, specifically in the smaller bandwidth shown in Table 3, which suggests that HRS score is likely a better randomly assigned treatment. In question 2, we evaluate the validity of an RD design. We conclude that based on the facts about how HRS score is assigned, our density plot, and our local linear regressions, that RD is a valid research design with HRS score as our running variable. In question 3, our regressions show that HRS score is a strong instrument for NPL status and that we are indeed in a fuzzy RD research design. Finally, we run 2SLS in question 4, with the HRS threshold as an instrument for NPL status. The coefficient on NPL status is not statistically different from zero so we cannot reject that there is no effect on housing prices from being designated NPL. This is very different from the regressions in question 1 which suggested a statistically significant positive effect of NPL status. In fact, the coefficients in both 2SLS regressions were negative and the confidence intervals in the smaller bandwidth regression show that we cannot rule out an effect of NPL status ranging from -9\% to 1.2\%. It could be plausible that the effect would be negative if NPL status provides previously unknown information to homeowners and home buyers about the environmental quality near a house. The difference in results between question 1 and question 4 show the importance of research design and using an exogenous treatment.
