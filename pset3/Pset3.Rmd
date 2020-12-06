@@ -31,9 +31,9 @@ p_load(coefplot, data.table, dplyr, foreign, readstata13, tidyr, xtable, broom, 
 
 
 # Directory 
-base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/pset3/"
+#base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/pset3/"
 #base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/pset3/"
-# base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/pset3/"
+base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/pset3/"
 # base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\pset3\\"
 
 # read data
@@ -371,23 +371,25 @@ bins.midpoint = (bins[-1] + bins[-(length(bins))])/2
 # assign a bin midpoint to each observation
 data$hrs_82_binmid = bins.midpoint[ data$hrs_82_bin ]
 
-# generate average of the treatment variable (NPL assignment) for each bin
-npl2000_bin =tapply(data$npl2000, data$hrs_82_bin, mean)
-
-# generate average outcome in each bin
-lnmdvalhs0_nbr_bin = tapply(data$lnmdvalhs0_nbr, data$hrs_82_bin, mean)
+# generate a variable of the density of the midpoint by counting up number of observations per bin, divide by total*binwidth
+hrs_82_bins_dist = table(data$hrs_82_binmid)/(dim(data)[1]*h)
+hrs_82_bins_dist <- as.numeric(hrs_82_bins_dist)
 
 # regression fitted on data below the cutoff
-below_lm <- lm(npl2000_bin ~ bins.midpoint, data.frame(npl2000_bin, bins.midpoint)[1:19,])
+below_lm <- lm(hrs_82_bins_dist ~ bins.midpoint, data.frame(hrs_82_bins_dist, bins.midpoint)[1:19,])
 summary(below_lm)
 
+# save predictions of model into new data frame with variable we want to plot against
+below_pred <- data.table(hrs_82_bins_dist_pred = predict(below_lm, data.frame(hrs_82_bins_dist, bins.midpoint)[1:19,]), bins.midpoint = bins.midpoint[1:19])
+
 # regression fitted on data above the cutoff
-above_lm <- lm(npl2000_bin ~ bins.midpoint, data.frame(npl2000_bin, bins.midpoint)[20:50,])
+above_lm <- lm(hrs_82_bins_dist ~ bins.midpoint, data.frame(hrs_82_bins_dist, bins.midpoint)[20:50,])
 summary(above_lm)
+
 ```
 
 \bigskip
-We estimate the treatment effect $\hat{\tau} = \hat{\alpha}_r - \hat{\alpha}_l =$ `r round(above_lm[[1]][1], 3)` - `r round(below_lm[[1]][1],3)` = `r round(above_lm[[1]][1] - below_lm[[1]][1], 3)`, the difference in the estimated intercepts from our local linear regressions above and below the threshold. This is suggestive evidence that being above the threshold is associated with a higher likelihood of being assigned NPL status. Of course, a drawback of fitting separate local linear regressions on either side of the threshold is that we cannot conduct statistical inference on our estimated treatment effect. 
+From our histogram, it does not appear visually that there is a discontinuity in the distribution of 1982 HRS scores around the 28.5 threshold. We further test this by running local linear regressions of the density of each bin by the midpoints of each bin on either side of the threshold and conclude that the relationship between bin midpoint and density of the midpoint is close to zero on either side of the threshold. This suggests that manipulation of 1982 HRS scores to game the assignment mechanism is not a concern in this context. 
 
 # Question 3: First Stage of RD Design
 
@@ -515,4 +517,4 @@ Unlike our results in question 1, both of our 2SLS estimations yield a coefficie
 
 ## Question 5: Conclusion
 
-In question 1, we ran 4 different OLS specifications with different sets of covariates and found that NPL status in 2000 had a statistically significant effect of between 4 and 7\% on median housing values in 2000. As discussed in question 1a, these estimates would be unbiased if the conditional independence assumption held. However, Table 1 showed that there are systematic differences between census tracts with an NPL designation and those without, which may suggest that there are also a number of unobserved differences between the two tracts. Therefore, we would be concerned that NPL status is not randomly assigned conditional on observables and our OLS regressions may be biased. Tables 2 and 3 then looked at the difference in covariates between census tracts above and below the HRS score cut-off. These census tracts were more balanced, specifically in the smaller bandwidth shown in Table 3, which suggests that HRS score is likely a better randomly assigned treatment. In question 2, we evaluate the validity of an RD design. We conclude that based on the facts about how HRS score is assigned, our density plot, and our local linear regressions, that RD is a valid research design with HRS score as our running variable. In question 3, our regressions show that HRS score is a strong instrument for NPL status and that we are indeed in a fuzzy RD research design. Finally, we run 2SLS in question 4, with the HRS threshold as an instrument for NPL status. The coefficient on NPL status is not statistically different from zero so we cannot reject that there is no effect on housing prices from being designated NPL. This is very different from the regressions in question 1 which suggested a statistically significant positive effect of NPL status. In fact, the coefficients in both 2SLS regressions were negative and the confidence intervals in the smaller bandwidth regression show that we cannot rule out an effect of NPL status ranging from -9\% to 1.2\%. It could be plausible that the effect would be negative if NPL status provides previously unknown information to homeowners and home buyers about the environmental quality near a house. The difference in results between question 1 and question 4 show the importance of research design and using an exogenous treatment.
+In question 1, we ran 4 different OLS specifications with different sets of covariates and found that NPL status in 2000 had a statistically significant effect of between 4 and 7\% on median housing values in 2000. As discussed in question 1a, these estimates would be unbiased if the conditional independence assumption held. However, Table 1 showed that there are systematic differences between census tracts with an NPL designation and those without, which may suggest that there are also a number of unobserved differences between the two tracts. Therefore, we would be concerned that NPL status is not randomly assigned conditional on observables and our OLS regressions may be biased. Tables 2 and 3 then looked at the difference in covariates between census tracts above and below the HRS score cut-off. These census tracts were more balanced, specifically in the smaller bandwidth shown in Table 3, which suggests that census tracts with sites with a HRS score just above and below the threshold are more comparable. In question 2, we evaluate the validity of an RD design. We conclude that based on the facts about how HRS score is assigned, our density plot, and our local linear regressions, that RD is a valid research design with HRS score as our running variable, as manipulation of HRS score to game the eligibility criteria is unlikely a concern in this context. In question 3, our regressions show that HRS score is a strong instrument for NPL status, verifying that we should use a fuzzy RD research design. Finally, we run 2SLS in question 4, with the HRS threshold as an instrument for NPL status. The coefficient on NPL status is not statistically different from zero so we cannot reject the null that there is no effect on housing prices from being designated NPL. This is very different from the regression results in question 1 which suggested a statistically significant positive effect of NPL status. In fact, the coefficients in both 2SLS regressions were negative and the confidence intervals in the smaller bandwidth regression show that we cannot rule out an effect of NPL status ranging from -9\% to 1.2\%. It could be plausible that the effect would be negative if NPL status provides previously unknown information to homeowners and home buyers about the environmental quality near a house. The difference in results between question 1 and question 4 show the importance of research design and using an exogenous treatment.
