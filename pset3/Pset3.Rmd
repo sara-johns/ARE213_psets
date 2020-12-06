@@ -1,7 +1,7 @@
 ---
-title: "Pset3"
+title: "ARE 213 Problem Set 3"
 author: "Becky Cardinali, Yuen Ho, Sara Johns, and Jacob Lefler"
-date: "12/4/2020"
+date: "12/7/2020"
 header-includes: 
   - \usepackage{float}
   - \floatplacement{figure}{H}
@@ -31,16 +31,278 @@ p_load(coefplot, data.table, dplyr, foreign, readstata13, tidyr, xtable, broom, 
 
 
 # Directory 
-base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/pset3/"
-# base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/"
+# base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/pset3/"
+base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/pset3/"
 # base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/pset3/"
 # base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\pset3\\"
 
 # read data
 data <- as.data.table(read_dta(paste0(base_directory, "2miledata.dta")))
+allSites <- as.data.table(read_dta(paste0(base_directory, "allsites.dta")))
+allCovariates <- as.data.table(read_dta(paste0(base_directory, "allcovariates.dta")))
+siteCovariates <- as.data.table(read_dta(paste0(base_directory, "sitecovariates.dta")))
 ```
 
 # Question 1: OLS Regressions
+
+This question asks you to run OLS regressions that look at whether there is an association between 2000 housing values and whether a census tract contained a hazardous waste site that was placed on the NPL by 2000.
+
+
+ (a) Use the file allsites.dta. This file contains only own tract housing variables (i.e. no 2 mile averages). Use "robust" standard errors for all regressions. First regress 2000 housing prices on whether the census tract had an NPL site in 2000. Include 1980 housing values as a control. Next add housing characteristics as controls. Run a third regression adding economic and demographic variables as controls. Finally run a 4th regression that also includes state fixed effects. Briefly interpret the regressions. Under what conditions will the coefficients on NPL 2000 status be unbiased?
+
+```{r, include = TRUE}
+
+## Regress 2000 housing prices on whether the census tract had an NPL site in 2000
+## Use "robust" standard errors for all regressions
+
+# 1980 housing values as a control
+lm1 <- lm(lnmdvalhs0 ~ npl2000 + lnmeanhs8, allSites) 
+summary(lm1, se = "white")
+
+# Add housing characteristics as controls
+lm2 <- lm(lnmdvalhs0 ~ npl2000 + lnmeanhs8 + tothsun8 + ownocc8 + firestoveheat80 +
+            noaircond80 + nofullkitchen80 + zerofullbath80 + bedrms0_80occ + bedrms1_80occ +
+            bedrms2_80occ + bedrms3_80occ + bedrms4_80occ + bedrms5_80occ + blt0_1yrs80occ +
+            blt2_5yrs80occ + blt6_10yrs80occ + blt10_20yrs80occ + blt20_30yrs80occ + 
+            blt30_40yrs80occ + blt40_yrs80occ + detach80occ + attach80occ + mobile80occ + 
+            occupied80, allSites) 
+summary(lm2, se = "white")
+
+# Add economic and demographic variables as controls
+lm3 <- lm(lnmdvalhs0 ~ npl2000 + lnmeanhs8 + tothsun8 + ownocc8 + firestoveheat80 +
+            noaircond80 + nofullkitchen80 + zerofullbath80 + bedrms0_80occ + bedrms1_80occ +
+            bedrms2_80occ + bedrms3_80occ + bedrms4_80occ + bedrms5_80occ + blt0_1yrs80occ +
+            blt2_5yrs80occ + blt6_10yrs80occ + blt10_20yrs80occ + blt20_30yrs80occ + 
+            blt30_40yrs80occ + blt40_yrs80occ + detach80occ + attach80occ + mobile80occ + 
+            occupied80 +
+            pop_den8 + shrblk8 + shrhsp8 + child8 + old8 + shrfor8 + ffh8 + smhse8 + hsdrop8 +
+            no_hs_diploma8 + ba_or_better8 + unemprt8 + povrat8 + welfare8 + avhhin8, allSites) 
+summary(lm3, se = "white")
+
+# Add state fixed effects
+lm4 <- feols(lnmdvalhs0 ~ npl2000 + lnmeanhs8 + tothsun8 + ownocc8 + firestoveheat80 +
+            noaircond80 + nofullkitchen80 + zerofullbath80 + bedrms0_80occ + bedrms1_80occ +
+            bedrms2_80occ + bedrms3_80occ + bedrms4_80occ + bedrms5_80occ + blt0_1yrs80occ +
+            blt2_5yrs80occ + blt6_10yrs80occ + blt10_20yrs80occ + blt20_30yrs80occ + 
+            blt30_40yrs80occ + blt40_yrs80occ + detach80occ + attach80occ + mobile80occ + 
+            occupied80 +
+            pop_den8 + shrblk8 + shrhsp8 + child8 + old8 + shrfor8 + ffh8 + smhse8 + hsdrop8 +
+            no_hs_diploma8 + ba_or_better8 + unemprt8 + povrat8 + welfare8 + avhhin8,
+            fixef = "statefips", data = allSites) 
+summary(lm4, se = "white")
+
+```
+
+****Briefly interpret the regressions****
+
+The coefficients on NPL 2000 status will be unbiased if the conditional independence assumption holds i.e if we have selection on observables. The key assumption underlying a ``selction on observables" design is that the treatment is as good as randomly assigned after we condition on observables. In other words, we assume that we observe *all* the factors that affect treatment assignment (whether a census tract contained a hazardous waste site that was placed on the NPL by 2000) and are correlated with the potential outcomes (2000 housing values). If there is systematic selection into treatment, we assume this selection is only a function of the observables. That is, we assume that having a hazardous waste site placed on the NPL by 2000 is uncorrelated with unobservable determinants of 2000 housing values conditional on the observables. If these assumptions hold, then a regression of 2000 housing prices on whether the census tract had an NPL site in 2000, conditioning on observables, will estimate the ATE. Thus, the coefficients on NPL 2000 status will be unbiased under these conditions.
+
+ (b) Here we will compare covariates between potential treatment and comparison groups. First, use allcovariates.dta to compare covariates (i.e. those used in the above regressions) between census tracts with and without a hazardous waste site listed on the NPL by 2000. Next, use sitecovariates.dta to compare covariates between those census tracts with a hazardous waste site that had an HRS test in 1982. Specifically, compare those with sites that scored above 28.5 to those that scored below 28.5. Finally, compare those census tracts with sites between 16.5 and 28.5 to census tracts with sites between 28.5 and 40.5. What conclusions do you draw from these 3 comparisons?
+ 
+ 
+```{r, include = TRUE}
+## Compare covariates between census tracts with and without a hazardous waste site listed
+## on the NPL by 2000 using allcovariates.dta
+
+# no old8 in allcovariates.dta
+
+# Make a log mean housing prices 1980 variable
+allCovariates$lnmeanhs80 <- log(allCovariates$meanhs8)
+
+summary_dt <- transpose(allCovariates[,lapply(.SD, mean, na.rm=TRUE), .SDcols = c(59, 23, 24, 28:31, 
+                                                                                  40:56, 3:15, 17), 
+                               by = npl2000])
+summary_dt <- cbind(summary_dt, transpose(allCovariates[,lapply(.SD, sd, na.rm=TRUE), .SDcols = 
+                                                          c(59, 23, 24, 28:31, 40:56, 3:15, 17), 
+                                                 by = npl2000]))
+colnames(summary_dt) <- c("No NPL means", "NPL means", "No NPL sd", "NPL sd")
+summary_dt <- summary_dt[2:39,] 
+summary_dt[, Variable := c("Log mean housing values", "Total housing units in tract", 
+                           "# owner-occupied units", "% units fire stove heat", 
+                           "% units with no AC", "% units no full kitchen",
+                           "% units with no full bath", "% own-occ units 0 bedrms",
+                           "% own-occ units 1 bedrm",  "% own-occ units 2 bedrms",  
+                           "% own-occ units 3 bedrms",  "% own-occ units 4 bedrms",  
+                           "% own-occ units 5 bedrms", "% own-occ units built in last yr", 
+                           "% own-occ units 2-5 yrs old", "% own-occ units 6-10 yrs old", 
+                           "% own-occ units 10-20 yrs old", "% own-occ units 20-30 yrs old", 
+                           "% own-occ units 30-40 yrs old", "% own-occ units 40+ yrs old", 
+                           "% detached single family housing", "% attached single family housing",
+                           "% mobile home single family", "% housing units occupied",
+                           "Tract population density", "Share of pop black", "Share of pop Hispanic",
+                           "Share of population < 18", "Share of population foreign born",
+                           "Share of female headed HHs", "% pop in same house 5 yrs ago",
+                           "% pop high school aged HS dropout", "% of pop > 25 with no HS diploma", 
+                           "% pop > 25 with BA or better", "% pop > 16 unemployed", 
+                           "% pop below poverty line", "% of HHs on public assistance",
+                           "Average household income")]
+
+formulas <- paste("allCovariates$", names(allCovariates)[c(59, 23, 24, 28:31, 40:56, 3:15, 17)], 
+                  "~ allCovariates$npl2000")
+t_test <- t(sapply(formulas, function(f) {      
+  res <- t.test(as.formula(f))
+  c(res$statistic, p.value=res$p.value)      
+}))
+
+colnames(t_test) <- c("t-stat", "p-value")
+
+summary_dt <- cbind(summary_dt, t_test)
+summary_dt[, Difference := `No NPL means` - `NPL means`]
+
+setcolorder(summary_dt, c("Variable", "No NPL means", "No NPL sd", "NPL means", 
+                          "NPL sd", "Difference", "t-stat", "p-value"))
+
+``` 
+
+```{r, include=TRUE, results = 'asis'}
+
+# First table for 1b
+
+print(xtable(summary_dt, caption = 'Difference in Means "No NPL by 2000" v "NPL by 2000" (all 
+             values are for 1980)', digits = 2), 
+      include.rownames = FALSE, size = "small", comment = FALSE)
+
+```
+
+```{r, include=TRUE}
+## Compare covariates between census tracts with a hazardous waste site that had
+## an HRS test in 1982 using sitecovariates.dta. Specifically, compare sites that
+## scored above 28.5 to those that scored below 28.5
+
+# no old8 in sitecovariates.dta
+
+# Make a log mean housing prices 1980 variable
+siteCovariates$lnmeanhs80 <- log(siteCovariates$meanhs8)
+
+# Make a dummy for scoring <= 28.5 == 0 and scoring > 28.5 == 1
+siteCovariates$HRSaboveThreshold <- 3
+siteCovariates[, HRSaboveThreshold := ifelse(hrs_82 > 28.5, 1, 0)]
+
+summary_dt_2 <- transpose(siteCovariates[,lapply(.SD, mean, na.rm=TRUE), .SDcols = c(61, 24, 25, 29:32,
+                                                                                     41:57, 4:16, 18), 
+                               by = HRSaboveThreshold])
+summary_dt_2 <- cbind(summary_dt_2, transpose(siteCovariates[,lapply(.SD, sd, na.rm=TRUE), .SDcols = 
+                                                          c(61, 24, 25, 29:32, 41:57, 4:16, 18), 
+                                                 by = HRSaboveThreshold]))
+colnames(summary_dt_2) <- c("HRS<=28.5 means", "HRS>28.5 means", "<=28.5 sd", ">28.5 sd")
+summary_dt_2 <- summary_dt_2[2:39,] 
+summary_dt_2[, Variable := c("Log mean housing values", "Total housing units in tract", 
+                           "# owner-occupied units", "% units fire stove heat", 
+                           "% units with no AC", "% units no full kitchen",
+                           "% units with no full bath", "% own-occ units 0 bedrms",
+                           "% own-occ units 1 bedrm",  "% own-occ units 2 bedrms",  
+                           "% own-occ units 3 bedrms",  "% own-occ units 4 bedrms",  
+                           "% own-occ units 5 bedrms", "% own-occ units built in last yr", 
+                           "% own-occ units 2-5 yrs old", "% own-occ units 6-10 yrs old", 
+                           "% own-occ units 10-20 yrs old", "% own-occ units 20-30 yrs old", 
+                           "% own-occ units 30-40 yrs old", "% own-occ units 40+ yrs old", 
+                           "% detached single family housing", "% attached single family housing",
+                           "% mobile home single family", "% housing units occupied",
+                           "Tract population density", "Share of pop black", "Share of pop Hispanic",
+                           "Share of population < 18", "Share of population foreign born",
+                           "Share of female headed HHs", "% pop in same house 5 yrs ago",
+                           "% pop high school aged HS dropout", "% of pop > 25 with no HS diploma", 
+                           "% pop > 25 with BA or better", "% pop > 16 unemployed", 
+                           "% pop below poverty line", "% of HHs on public assistance",
+                           "Average household income")]
+
+formulas <- paste("siteCovariates$", names(siteCovariates)[c(61, 24, 25, 29:32, 41:57, 4:16, 18)], 
+                  "~ siteCovariates$HRSaboveThreshold")
+t_test <- t(sapply(formulas, function(f) {      
+  res <- t.test(as.formula(f))
+  c(res$statistic, p.value=res$p.value)      
+}))
+
+colnames(t_test) <- c("t-stat", "p-value")
+
+summary_dt_2 <- cbind(summary_dt_2, t_test)
+summary_dt_2[, Difference := `HRS<=28.5 means` - `HRS>28.5 means`]
+
+setcolorder(summary_dt_2, c("Variable", "HRS<=28.5 means", "<=28.5 sd", "HRS>28.5 means", 
+                          ">28.5 sd", "Difference", "t-stat", "p-value"))
+
+``` 
+
+```{r, include=TRUE, results = 'asis'}
+
+# Second table for 1b
+
+print(xtable(summary_dt_2, caption = 'Difference in Means "HRS <= 28.5" v "HRS > 28.5" (for sites 
+             that had an HRS test in 1982)', digits = 2), 
+      include.rownames = FALSE, size = "small", comment = FALSE)
+
+```
+
+```{r, include=TRUE}
+## Compare covariates between census tracts with a hazardous waste site that had
+## an HRS test in 1982 using sitecovariates.dta. Specifically, compare sites that
+## scored between 16.5 and 28.5 to those that scored between 28.5 and 40.5
+
+# no old8 in sitecovariates.dta
+
+# drop observations with HRS below 16.5 or above 40.5
+siteCovariates <- subset(siteCovariates, siteCovariates$hrs_82 <= 40.5)
+siteCovariates <- subset(siteCovariates, siteCovariates$hrs_82 >= 16.5)
+
+# HRSaboveThreshold from before is still the appropriate dummy since it keeps track of
+# above or below 28.5 and we've removed observations outside the desired intervals
+
+summary_dt_3 <- transpose(siteCovariates[,lapply(.SD, mean, na.rm=TRUE), .SDcols = c(61, 24, 25, 29:32,
+                                                                                     41:57, 4:16, 18), 
+                               by = HRSaboveThreshold])
+summary_dt_3 <- cbind(summary_dt_3, transpose(siteCovariates[,lapply(.SD, sd, na.rm=TRUE), .SDcols = 
+                                                          c(61, 24, 25, 29:32, 41:57, 4:16, 18), 
+                                                 by = HRSaboveThreshold]))
+colnames(summary_dt_3) <- c("Low HRS means", "High HRS means", "Low sd", "High sd")
+summary_dt_3 <- summary_dt_3[2:39,] 
+summary_dt_3[, Variable := c("Log mean housing values", "Total housing units in tract", 
+                           "# owner-occupied units", "% units fire stove heat", 
+                           "% units with no AC", "% units no full kitchen",
+                           "% units with no full bath", "% own-occ units 0 bedrms",
+                           "% own-occ units 1 bedrm",  "% own-occ units 2 bedrms",  
+                           "% own-occ units 3 bedrms",  "% own-occ units 4 bedrms",  
+                           "% own-occ units 5 bedrms", "% own-occ units built in last yr", 
+                           "% own-occ units 2-5 yrs old", "% own-occ units 6-10 yrs old", 
+                           "% own-occ units 10-20 yrs old", "% own-occ units 20-30 yrs old", 
+                           "% own-occ units 30-40 yrs old", "% own-occ units 40+ yrs old", 
+                           "% detached single family housing", "% attached single family housing",
+                           "% mobile home single family", "% housing units occupied",
+                           "Tract population density", "Share of pop black", "Share of pop Hispanic",
+                           "Share of population < 18", "Share of population foreign born",
+                           "Share of female headed HHs", "% pop in same house 5 yrs ago",
+                           "% pop high school aged HS dropout", "% of pop > 25 with no HS diploma", 
+                           "% pop > 25 with BA or better", "% pop > 16 unemployed", 
+                           "% pop below poverty line", "% of HHs on public assistance",
+                           "Average household income")]
+
+formulas <- paste("siteCovariates$", names(siteCovariates)[c(61, 24, 25, 29:32, 41:57, 4:16, 18)], 
+                  "~ siteCovariates$HRSaboveThreshold")
+t_test <- t(sapply(formulas, function(f) {      
+  res <- t.test(as.formula(f))
+  c(res$statistic, p.value=res$p.value)      
+}))
+
+colnames(t_test) <- c("t-stat", "p-value")
+
+summary_dt_3 <- cbind(summary_dt_3, t_test)
+summary_dt_3[, Difference := `Low HRS means` - `High HRS means`]
+
+setcolorder(summary_dt_3, c("Variable", "Low HRS means", "Low sd", "High HRS means", 
+                          "High sd", "Difference", "t-stat", "p-value"))
+
+``` 
+
+```{r, include=TRUE, results = 'asis'}
+
+# Third table for 1b
+
+print(xtable(summary_dt_3, caption = 'Difference in Means "16.5 <= HRS <= 28.5" v "28.5 < HRS <= 40.5" 
+(for sites that had an HRS test in 1982)', digits = 2), 
+      include.rownames = FALSE, size = "small", comment = FALSE)
+```
+
+*****Conclusions we draw from these 3 comparisons*****
+
 
 # Question 2: Regression Discontinuity Design
 
