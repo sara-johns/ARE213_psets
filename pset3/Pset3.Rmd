@@ -32,8 +32,8 @@ p_load(coefplot, data.table, dplyr, foreign, readstata13, tidyr, xtable, broom, 
 
 # Directory 
 # base_directory <- "/Users/sarajohns/Desktop/ARE213_psets/pset3/"
-base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/pset3/"
-# base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/pset3/"
+#base_directory <- "/Users/beckycardinali/Desktop/ARE213_psets/pset3/"
+base_directory <- "/Users/yuen/Documents/GitHub/ARE213_psets/pset3/"
 # base_directory <- "C:\\Users\\jacob\\Documents\\GitHub\\ARE213_psets\\pset3\\"
 
 # read data
@@ -49,6 +49,8 @@ This question asks you to run OLS regressions that look at whether there is an a
 
 
  (a) Use the file allsites.dta. This file contains only own tract housing variables (i.e. no 2 mile averages). Use "robust" standard errors for all regressions. First regress 2000 housing prices on whether the census tract had an NPL site in 2000. Include 1980 housing values as a control. Next add housing characteristics as controls. Run a third regression adding economic and demographic variables as controls. Finally run a 4th regression that also includes state fixed effects. Briefly interpret the regressions. Under what conditions will the coefficients on NPL 2000 status be unbiased?
+ 
+\bigskip
 
 ```{r, include = TRUE}
 
@@ -74,8 +76,7 @@ lm3 <- lm(lnmdvalhs0 ~ npl2000 + lnmeanhs8 + tothsun8 + ownocc8 + firestoveheat8
             bedrms2_80occ + bedrms3_80occ + bedrms4_80occ + bedrms5_80occ + blt0_1yrs80occ +
             blt2_5yrs80occ + blt6_10yrs80occ + blt10_20yrs80occ + blt20_30yrs80occ + 
             blt30_40yrs80occ + blt40_yrs80occ + detach80occ + attach80occ + mobile80occ + 
-            occupied80 +
-            pop_den8 + shrblk8 + shrhsp8 + child8 + old8 + shrfor8 + ffh8 + smhse8 + hsdrop8 +
+            occupied80 + pop_den8 + shrblk8 + shrhsp8 + child8 + old8 + shrfor8 + ffh8 + smhse8 + hsdrop8 +
             no_hs_diploma8 + ba_or_better8 + unemprt8 + povrat8 + welfare8 + avhhin8, allSites) 
 summary(lm3, se = "white")
 
@@ -92,13 +93,13 @@ lm4 <- feols(lnmdvalhs0 ~ npl2000 + lnmeanhs8 + tothsun8 + ownocc8 + firestovehe
 summary(lm4, se = "white")
 
 ```
+\bigskip
 
-****Briefly interpret the regressions****
-
-The coefficients on NPL 2000 status will be unbiased if the conditional independence assumption holds i.e if we have selection on observables. The key assumption underlying a ``selction on observables" design is that the treatment is as good as randomly assigned after we condition on observables. In other words, we assume that we observe *all* the factors that affect treatment assignment (whether a census tract contained a hazardous waste site that was placed on the NPL by 2000) and are correlated with the potential outcomes (2000 housing values). If there is systematic selection into treatment, we assume this selection is only a function of the observables. That is, we assume that having a hazardous waste site placed on the NPL by 2000 is uncorrelated with unobservable determinants of 2000 housing values conditional on the observables. If these assumptions hold, then a regression of 2000 housing prices on whether the census tract had an NPL site in 2000, conditioning on observables, will estimate the ATE. Thus, the coefficients on NPL 2000 status will be unbiased under these conditions.
+Taking our 4th regression as an example (with all controls and state fixed effects), we can interpret the results as having a hazardous waste site listed on the NPL by 2000 is associated with a `r round(100*lm4[["coefficients"]][1],2)` \% increase in median housing values in 2000, ceteris paribus. The coefficients on NPL 2000 status will be unbiased if the conditional independence assumption holds i.e if we have selection on observables ($(Y_i(1), Y_i(0)) \perp D_i | X_i$). The key assumption underlying a ``selection on observables" design is that the treatment is as good as randomly assigned after we condition on observables. In other words, we assume that we observe *all* the factors that affect treatment assignment (whether a census tract contained a hazardous waste site that was placed on the NPL by 2000) and are correlated with the potential outcomes (2000 housing values). If there is systematic selection into treatment, we assume this selection is only a function of the observables. That is, we assume that having a hazardous waste site placed on the NPL by 2000 is uncorrelated with unobservable determinants of 2000 housing values conditional on the observables. If these assumptions hold, then a regression of 2000 housing prices on whether the census tract had an NPL site in 2000, conditioning on observables, will estimate the ATE. Thus, the coefficients on NPL 2000 status will be unbiased under these conditions.
 
  (b) Here we will compare covariates between potential treatment and comparison groups. First, use allcovariates.dta to compare covariates (i.e. those used in the above regressions) between census tracts with and without a hazardous waste site listed on the NPL by 2000. Next, use sitecovariates.dta to compare covariates between those census tracts with a hazardous waste site that had an HRS test in 1982. Specifically, compare those with sites that scored above 28.5 to those that scored below 28.5. Finally, compare those census tracts with sites between 16.5 and 28.5 to census tracts with sites between 28.5 and 40.5. What conclusions do you draw from these 3 comparisons?
  
+ \bigskip
  
 ```{r, include = TRUE}
 ## Compare covariates between census tracts with and without a hazardous waste site listed
@@ -117,7 +118,7 @@ summary_dt <- cbind(summary_dt, transpose(allCovariates[,lapply(.SD, sd, na.rm=T
                                                  by = npl2000]))
 colnames(summary_dt) <- c("No NPL means", "NPL means", "No NPL sd", "NPL sd")
 summary_dt <- summary_dt[2:39,] 
-summary_dt[, Variable := c("Log mean housing values", "Total housing units in tract", 
+summary_dt[, "Variable (1980 Values)" := c("Log mean housing values", "Total housing units in tract", 
                            "# owner-occupied units", "% units fire stove heat", 
                            "% units with no AC", "% units no full kitchen",
                            "% units with no full bath", "% own-occ units 0 bedrms",
@@ -149,7 +150,7 @@ colnames(t_test) <- c("t-stat", "p-value")
 summary_dt <- cbind(summary_dt, t_test)
 summary_dt[, Difference := `No NPL means` - `NPL means`]
 
-setcolorder(summary_dt, c("Variable", "No NPL means", "No NPL sd", "NPL means", 
+setcolorder(summary_dt, c("Variable (1980 Values)", "No NPL means", "No NPL sd", "NPL means", 
                           "NPL sd", "Difference", "t-stat", "p-value"))
 
 ``` 
@@ -158,12 +159,14 @@ setcolorder(summary_dt, c("Variable", "No NPL means", "No NPL sd", "NPL means",
 
 # First table for 1b
 
-print(xtable(summary_dt, caption = 'Difference in Means "No NPL by 2000" v "NPL by 2000" (all 
-             values are for 1980)', digits = 2), 
-      include.rownames = FALSE, size = "small", comment = FALSE)
+print(xtable(summary_dt, caption = "Difference in Means of Census Tracks Without Versus With a Site Listed on the NPL by 2000", digits = 2), include.rownames = FALSE, size = "small", comment = FALSE)
 
 ```
+\bigskip
 
+Table 1 suggests that census tracts with a hazardous waste site listed on the NPL by 2000 differ systematically from census tracts without such sites. Specifically, compared to tracts with such sites, census tracts without a site listed on the NPL by 2000 have on average higher mean housing values, fewer housing units, fewer owner-occupied units, smaller proportion of units with no AC, smaller proportion of units with no full bath, higher population density, higher share of black and hispanic populations, higher average household income, among other differences, all of which are statistically significant at at least the 5\% level. These results suggest that restricting comparisons to census tracts with a site listed on the NPL by 2000 may be a better strategy. 
+
+\bigskip
 ```{r, include=TRUE}
 ## Compare covariates between census tracts with a hazardous waste site that had
 ## an HRS test in 1982 using sitecovariates.dta. Specifically, compare sites that
@@ -184,9 +187,9 @@ summary_dt_2 <- transpose(siteCovariates[,lapply(.SD, mean, na.rm=TRUE), .SDcols
 summary_dt_2 <- cbind(summary_dt_2, transpose(siteCovariates[,lapply(.SD, sd, na.rm=TRUE), .SDcols = 
                                                           c(61, 24, 25, 29:32, 41:57, 4:16, 18), 
                                                  by = HRSaboveThreshold]))
-colnames(summary_dt_2) <- c("HRS<=28.5 means", "HRS>28.5 means", "<=28.5 sd", ">28.5 sd")
+colnames(summary_dt_2) <- c("HRS Below means", "HRS Above means", "HRS Below sd", "HRS Above sd")
 summary_dt_2 <- summary_dt_2[2:39,] 
-summary_dt_2[, Variable := c("Log mean housing values", "Total housing units in tract", 
+summary_dt_2[, "Variable (1980 Values)" := c("Log mean housing values", "Total housing units in tract", 
                            "# owner-occupied units", "% units fire stove heat", 
                            "% units with no AC", "% units no full kitchen",
                            "% units with no full bath", "% own-occ units 0 bedrms",
@@ -216,10 +219,10 @@ t_test <- t(sapply(formulas, function(f) {
 colnames(t_test) <- c("t-stat", "p-value")
 
 summary_dt_2 <- cbind(summary_dt_2, t_test)
-summary_dt_2[, Difference := `HRS<=28.5 means` - `HRS>28.5 means`]
+summary_dt_2[, Difference := `HRS Below means` - `HRS Above means`]
 
-setcolorder(summary_dt_2, c("Variable", "HRS<=28.5 means", "<=28.5 sd", "HRS>28.5 means", 
-                          ">28.5 sd", "Difference", "t-stat", "p-value"))
+setcolorder(summary_dt_2, c("Variable (1980 Values)", "HRS Below means", "HRS Below sd", "HRS Above means", 
+                          "HRS Above sd", "Difference", "t-stat", "p-value"))
 
 ``` 
 
@@ -227,11 +230,15 @@ setcolorder(summary_dt_2, c("Variable", "HRS<=28.5 means", "<=28.5 sd", "HRS>28.
 
 # Second table for 1b
 
-print(xtable(summary_dt_2, caption = 'Difference in Means "HRS <= 28.5" v "HRS > 28.5" (for sites 
-             that had an HRS test in 1982)', digits = 2), 
+print(xtable(summary_dt_2, caption = "Difference in Means of Census Tracks with a HRS Score Below Versus Above the 28.5 Threshold", digits = 2), 
       include.rownames = FALSE, size = "small", comment = FALSE)
 
 ```
+\bigskip
+
+The results from Table 2 suggest that among census tracts with a hazardous waste site that had an HRS test in 1982, tracts with a site that scored above the 28.5 threshold differ systematically from sites with a HRS score below the threshold. For example, census tracts with a site scoring below the threshold have on average lower mean housing values, higher share of female-headed households, higher share of population in the same house 5 years ago, higher proportion of population with no high school diploma, lower proportion of population with a college degree or better, a higher unemployment rate, a higher proportion of households on public assistance, and lower household income, among other differences, all of which are statistically significant at at least the 5\% level. 
+
+\bigskip
 
 ```{r, include=TRUE}
 ## Compare covariates between census tracts with a hazardous waste site that had
@@ -253,9 +260,9 @@ summary_dt_3 <- transpose(siteCovariates[,lapply(.SD, mean, na.rm=TRUE), .SDcols
 summary_dt_3 <- cbind(summary_dt_3, transpose(siteCovariates[,lapply(.SD, sd, na.rm=TRUE), .SDcols = 
                                                           c(61, 24, 25, 29:32, 41:57, 4:16, 18), 
                                                  by = HRSaboveThreshold]))
-colnames(summary_dt_3) <- c("Low HRS means", "High HRS means", "Low sd", "High sd")
+colnames(summary_dt_3) <- c("HRS Below means", "HRS Above means", "HRS Below sd", "HRS Above sd")
 summary_dt_3 <- summary_dt_3[2:39,] 
-summary_dt_3[, Variable := c("Log mean housing values", "Total housing units in tract", 
+summary_dt_3[, "Variable (1980 Values)" := c("Log mean housing values", "Total housing units in tract", 
                            "# owner-occupied units", "% units fire stove heat", 
                            "% units with no AC", "% units no full kitchen",
                            "% units with no full bath", "% own-occ units 0 bedrms",
@@ -285,10 +292,9 @@ t_test <- t(sapply(formulas, function(f) {
 colnames(t_test) <- c("t-stat", "p-value")
 
 summary_dt_3 <- cbind(summary_dt_3, t_test)
-summary_dt_3[, Difference := `Low HRS means` - `High HRS means`]
+summary_dt_3[, Difference := `HRS Below means` - `HRS Above means`]
 
-setcolorder(summary_dt_3, c("Variable", "Low HRS means", "Low sd", "High HRS means", 
-                          "High sd", "Difference", "t-stat", "p-value"))
+setcolorder(summary_dt_3, c("Variable (1980 Values)", "HRS Below means", "HRS Below sd", "HRS Above means", "HRS Above sd", "Difference", "t-stat", "p-value"))
 
 ``` 
 
@@ -296,13 +302,12 @@ setcolorder(summary_dt_3, c("Variable", "Low HRS means", "Low sd", "High HRS mea
 
 # Third table for 1b
 
-print(xtable(summary_dt_3, caption = 'Difference in Means "16.5 <= HRS <= 28.5" v "28.5 < HRS <= 40.5" 
-(for sites that had an HRS test in 1982)', digits = 2), 
+print(xtable(summary_dt_3, caption = "Difference in Means of Census Tracks with a HRS Score Below Versus Above the 28.5 Threshold (bandwidth = 12 points)", digits = 2), 
       include.rownames = FALSE, size = "small", comment = FALSE)
 ```
 
-*****Conclusions we draw from these 3 comparisons*****
-
+\bigskip
+The results reported in Table 3 suggest that census tracts above and below the threshold become more comparable when we shorten the bandwidth. That is, when we only compare census tracts that are within 12 points of the threshold on either side, most of the differences in observable characteristics become statistically insignificant. We do find a statistically significant difference in two variables, percentage of owner-occupied units with 2 bedrooms and percentage of population with a college degree, which is expected when we are testing balance across 38 variables at the 5\% level. 
 
 # Question 2: Regression Discontinuity Design
 
