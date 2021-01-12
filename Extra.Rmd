@@ -18,6 +18,8 @@ knitr::opts_chunk$set(echo = TRUE)
 # Section 0: Set Up
 #======================
 
+# add this comment as an example
+
 # Clear workspace
 rm(list = ls())
 
