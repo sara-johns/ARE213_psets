@@ -20,6 +20,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # add this comment as an example
 
+
+# more example 
 # Clear workspace
 rm(list = ls())
 
